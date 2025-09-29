@@ -60,6 +60,7 @@
                         </div>
                     </div>
 
+                    <input type="hidden" id="nomeTemplateSelecionado" name="nome_template" value="">
                     <div class="mb-4">
                         <label for="mensagem" class="form-label">
                             <i class="bi bi-chat-text text-primary"></i> 
@@ -114,40 +115,31 @@
             </div>
         </div>
 
-        <!-- Card de Templates Prontos -->
+        <!-- Card de Templates de Aviso -->
         <div class="card shadow-sm mt-4">
-            <div class="card-header bg-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 text-secondary">
-                    <i class="bi bi-file-text"></i> Templates Prontos
+                    <i class="bi bi-file-text"></i> Templates de Aviso
                 </h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalGerenciarTemplates">
+                    <i class="bi bi-gear"></i> Gerenciar Templates
+                </button>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Clique em um template para usar como base:</p>
-                <div class="row g-2">
+                <p class="text-muted mb-3">Clique em um template para carregar o texto na mensagem:</p>
+                <div class="row g-2" id="templates-container">
+                    {% for template in templates %}
                     <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100" 
-                                onclick="usarTemplate('manutencao')">
-                            <i class="bi bi-tools"></i> Manutenção Programada
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" 
+                                onclick="usarTemplate('{{ template.nome }}', '{{ template.corpo | tojson | safe }}')">
+                            <i class="bi bi-file-earmark-text"></i> {{ template.nome | replace("_", " ") | title }}
                         </button>
                     </div>
-                    <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-warning btn-sm w-100" 
-                                onclick="usarTemplate('vencimento')">
-                            <i class="bi bi-exclamation-triangle"></i> Aviso de Vencimento
-                        </button>
+                    {% else %}
+                    <div class="col-12">
+                        <p class="text-muted">Nenhum template disponível. Crie um novo no gerenciador.</p>
                     </div>
-                    <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-success btn-sm w-100" 
-                                onclick="usarTemplate('promocao')">
-                            <i class="bi bi-tag"></i> Promoção Especial
-                        </button>
-                    </div>
-                    <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-info btn-sm w-100" 
-                                onclick="usarTemplate('novidade')">
-                            <i class="bi bi-star"></i> Nova Funcionalidade
-                        </button>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -188,67 +180,57 @@
 </div>
 {% endblock %}
 
+<!-- Modal para Gerenciar Templates -->
+<div class="modal fade" id="modalGerenciarTemplates" tabindex="-1" aria-labelledby="modalGerenciarTemplatesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalGerenciarTemplatesLabel"><i class="bi bi-gear"></i> Gerenciar Templates de Aviso</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="templateNome" class="form-label">Nome do Template:</label>
+                    <input type="text" class="form-control" id="templateNome" placeholder="Ex: aviso_vencimento_whatsapp">
+                </div>
+                <div class="mb-3">
+                    <label for="templateAssunto" class="form-label">Assunto (Opcional):</label>
+                    <input type="text" class="form-control" id="templateAssunto" placeholder="Ex: Sua lista está para vencer!">
+                </div>
+                <div class="mb-3">
+                    <label for="templateCorpo" class="form-label">Corpo da Mensagem:</label>
+                    <textarea class="form-control" id="templateCorpo" rows="10" placeholder="Use {{nome_cliente}}, {{nome_lista}}, {{id_lista}}, {{data_vencimento}}, {{dias_restantes}}"></textarea>
+                    <div class="form-text">Variáveis disponíveis: <code>{{nome_cliente}}</code>, <code>{{nome_lista}}</code>, <code>{{id_lista}}</code>, <code>{{data_vencimento}}</code>, <code>{{dias_restantes}}</code></div>
+                </div>
+                <button type="button" class="btn btn-success" onclick="salvarTemplate()">Salvar/Atualizar Template</button>
+                <hr>
+                <h6>Templates Existentes:</h6>
+                <ul class="list-group" id="listaTemplatesExistentes">
+                    {% for template in templates %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ template.nome | replace("_", " ") | title }}</strong>
+                            <p class="mb-0 text-muted small">{{ template.corpo | truncate(100) }}</p>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-info me-2" onclick="editarTemplate('{{ template.nome }}', '{{ template.assunto | tojson | safe }}', '{{ template.corpo | tojson | safe }}')"><i class="bi bi-pencil"></i> Editar</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="excluirTemplate('{{ template.nome }}')"><i class="bi bi-trash"></i> Excluir</button>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <script>
 // Templates de mensagens
-const templates = {
-    manutencao: `🔧 MANUTENÇÃO PROGRAMADA
 
-Prezados clientes,
-
-Informamos que haverá uma manutenção em nossos servidores:
-
-📅 Data: [DATA]
-⏰ Horário: [HORÁRIO]
-⏱️ Duração estimada: [TEMPO]
-
-Durante este período, o serviço pode ficar instável.
-
-Agradecemos a compreensão!
-
-Sistema IPTV`,
-
-    vencimento: `⚠️ AVISO DE VENCIMENTO
-
-Olá!
-
-Sua lista IPTV está próxima do vencimento:
-
-📅 Vence em: [DIAS] dias
-💰 Valor para renovar: R$ [VALOR]
-
-Para renovar, envie "renovar" e siga as instruções.
-
-Não perca o acesso!
-
-Sistema IPTV`,
-
-    promocao: `🎉 PROMOÇÃO ESPECIAL!
-
-Aproveite nossa oferta limitada:
-
-💰 [DESCONTO]% de desconto
-⏰ Válida até: [DATA]
-🎯 Para: [PÚBLICO]
-
-Para aproveitar, envie "comprar" agora mesmo!
-
-Não perca essa oportunidade!
-
-Sistema IPTV`,
-
-    novidade: `🆕 NOVIDADE NO SISTEMA!
-
-Temos novidades para você:
-
-✨ [NOVA_FUNCIONALIDADE]
-🚀 [MELHORIA]
-📺 [NOVO_CONTEUDO]
-
-Aproveite as novidades e tenha a melhor experiência!
-
-Sistema IPTV`
-};
 
 // Contador de caracteres
 document.getElementById('mensagem').addEventListener('input', function() {
@@ -306,14 +288,87 @@ document.getElementById('tipo').addEventListener('change', async function() {
 });
 
 // Usar template
-function usarTemplate(tipo) {
-    if (templates[tipo]) {
-        document.getElementById('mensagem').value = templates[tipo];
-        document.getElementById('mensagem').dispatchEvent(new Event('input'));
-        
-        // Scroll para a área da mensagem
-        document.getElementById('mensagem').scrollIntoView({ behavior: 'smooth' });
-        document.getElementById('mensagem').focus();
+function usarTemplate(nome, corpo) {
+    document.getElementById('mensagem').value = corpo;
+    document.getElementById('mensagem').dispatchEvent(new Event('input'));
+    document.getElementById('nomeTemplateSelecionado').value = nome; // Define o nome do template selecionado
+    
+    // Scroll para a área da mensagem
+    document.getElementById('mensagem').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('mensagem').focus();
+}
+
+// Limpar formulário
+function limparFormulario() {
+    document.getElementById('formAviso').reset();
+    document.getElementById('contadorCaracteres').textContent = '0';
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('estimativaEnvios').innerHTML = '<span class="text-muted">Selecione um público</span>';
+    document.getElementById('nomeTemplateSelecionado').value = ''; // Limpa o nome do template selecionado
+}
+
+// Funções para gerenciar templates via API
+async function salvarTemplate() {
+    const nome = document.getElementById('templateNome').value.trim();
+    const assunto = document.getElementById('templateAssunto').value.trim();
+    const corpo = document.getElementById('templateCorpo').value.trim();
+
+    if (!nome || !corpo) {
+        alert('Nome e Corpo do template são obrigatórios!');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nome, assunto, corpo })
+        });
+
+        if (response.ok) {
+            alert('Template salvo com sucesso!');
+            location.reload(); // Recarrega a página para atualizar a lista de templates
+        } else {
+            const errorData = await response.json();
+            alert('Erro ao salvar template: ' + (errorData.detail || response.statusText));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar template:', error);
+        alert('Erro de conexão ao salvar template.');
+    }
+}
+
+function editarTemplate(nome, assunto, corpo) {
+    document.getElementById('templateNome').value = nome;
+    document.getElementById('templateAssunto').value = assunto;
+    document.getElementById('templateCorpo').value = corpo;
+    // Opcional: focar no modal ou no campo de nome
+    const modal = new bootstrap.Modal(document.getElementById('modalGerenciarTemplates'));
+    modal.show();
+}
+
+async function excluirTemplate(nome) {
+    if (!confirm(`Tem certeza que deseja excluir o template '${nome}'?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/templates/${nome}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Template excluído com sucesso!');
+            location.reload(); // Recarrega a página para atualizar a lista de templates
+        } else {
+            const errorData = await response.json();
+            alert('Erro ao excluir template: ' + (errorData.detail || response.statusText));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir template:', error);
+        alert('Erro de conexão ao excluir template.');
     }
 }
 
@@ -336,8 +391,8 @@ document.getElementById('formAviso').addEventListener('submit', function(e) {
         return;
     }
     
-    if (!mensagem) {
-        alert('Por favor, digite a mensagem!');
+    if (!mensagem && !nomeTemplate) {
+        alert('Por favor, selecione um template ou digite a mensagem!');
         e.preventDefault();
         return;
     }

@@ -2,12 +2,16 @@
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, render_template_string, make_response
 from datetime import datetime, timedelta
 import json
+import os
+import sqlite3
 from config import Config
-from database import db
-from whatsapp_bot import broadcast_para_clientes_ativos, broadcast_para_todos_clientes
+from database import DatabaseManager
+db = DatabaseManager()
+from whatsapp_bot import enviar_mensagem_personalizada
 from mercpag import mercado_pago
 from bitpanel_automation import BitPanelManager
 import time
+import os
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
@@ -141,6 +145,65 @@ def listar_clientes():
         return redirect(url_for("index"))
     
     
+@app.route("/api/templates", methods=["GET", "POST"])
+def gerenciar_templates():
+    if request.method == "GET":
+        # Retorna todos os templates
+        conn = db.get_connection()
+        templates_raw = conn.execute("SELECT * FROM templates_avisos").fetchall()
+        conn.close()
+        templates = [dict(t) for t in templates_raw]
+        return jsonify(templates)
+    elif request.method == "POST":
+        data = request.json
+        nome = data.get("nome")
+        assunto = data.get("assunto")
+        corpo = data.get("corpo")
+        if not nome or not corpo:
+            return jsonify({"error": "Nome e corpo do template são obrigatórios"}), 400
+        
+        # Tenta atualizar primeiro, se não existir, insere
+        if db.update_template(nome, assunto, corpo):
+            return jsonify({"message": "Template atualizado com sucesso!"})
+        else:
+            conn = db.get_connection()
+            try:
+                conn.execute(
+                    "INSERT INTO templates_avisos (nome, assunto, corpo) VALUES (?, ?, ?)",
+                    (nome, assunto, corpo)
+                )
+                conn.commit()
+                return jsonify({"message": "Template criado com sucesso!"}), 201
+            except sqlite3.IntegrityError:
+                return jsonify({"error": "Já existe um template com este nome."}), 409
+            finally:
+                conn.close()
+
+@app.route("/api/templates/<nome_template>", methods=["GET", "PUT", "DELETE"])
+def gerenciar_template_individual(nome_template):
+    if request.method == "GET":
+        template = db.get_template(nome_template)
+        if template:
+            return jsonify(template)
+        return jsonify({"error": "Template não encontrado"}), 404
+    elif request.method == "PUT":
+        data = request.json
+        assunto = data.get("assunto")
+        corpo = data.get("corpo")
+        if not corpo:
+            return jsonify({"error": "Corpo do template é obrigatório"}), 400
+        if db.update_template(nome_template, assunto, corpo):
+            return jsonify({"message": "Template atualizado com sucesso!"})
+        return jsonify({"error": "Template não encontrado"}), 404
+    elif request.method == "DELETE":
+        conn = db.get_connection()
+        cursor = conn.execute("DELETE FROM templates_avisos WHERE nome = ?", (nome_template,))
+        conn.commit()
+        conn.close()
+        if cursor.rowcount > 0:
+            return jsonify({"message": "Template excluído com sucesso!"})
+        return jsonify({"error": "Template não encontrado"}), 404
+
 @app.route("/api/contar-clientes/<tipo>")
 def api_contar_clientes(tipo):
     """API para obter a contagem de clientes por tipo para a página de avisos."""
@@ -583,43 +646,92 @@ def atualizar_precos():
 
 @app.route("/avisos")
 def avisos():
-    """Página de envio de avisos"""
-    response = make_response(render_template("avisos.html"))
-    return add_no_cache_headers(response)
+    """Página para enviar avisos em massa"""
+    conn = db.get_connection()
+    templates_raw = conn.execute("SELECT * FROM templates_avisos").fetchall()
+    conn.close()
+    templates = [dict(t) for t in templates_raw]
+    return render_template("avisos.html", templates=templates)
+
 
 @app.route("/enviar-aviso", methods=["POST"])
 def enviar_aviso():
-    """Enviar aviso para clientes"""
+    """Rota para enviar avisos individualizados via WhatsApp usando templates."""
     try:
-        tipo = request.form["tipo"]
-        mensagem = request.form["mensagem"].strip()
-        
-        if not mensagem:
-            flash("Mensagem não pode estar vazia", "error")
+        tipo_publico = request.form.get("tipo")
+        nome_template = request.form.get("nome_template") # Novo campo para o nome do template
+        mensagem_manual = request.form.get("mensagem") # Mensagem manual, caso não use template
+
+        if not tipo_publico:
+            flash("Por favor, selecione o público.", "error")
             return redirect(url_for("avisos"))
-        
-        if tipo == "ativos":
-            sucesso, erro = broadcast_para_clientes_ativos(mensagem)
-            tipo_desc = "clientes ativos"
-        elif tipo == "expirando":
-            from whatsapp_bot import broadcast_para_clientes_expirando
-            sucesso, erro = broadcast_para_clientes_expirando(mensagem, 7)
-            tipo_desc = "clientes expirando"
-        elif tipo == "todos":
-            sucesso, erro = broadcast_para_todos_clientes(mensagem)
-            tipo_desc = "todos os clientes"
+
+        template = None
+        if nome_template:
+            template = db.get_template(nome_template)
+            if not template:
+                flash(f"Template \'{nome_template}\' não encontrado.", "error")
+                return redirect(url_for("avisos"))
+            mensagem_base = template["corpo"]
+        elif mensagem_manual:
+            mensagem_base = mensagem_manual
         else:
-            flash("Tipo de envio inválido", "error")
+            flash("Por favor, selecione um template ou digite uma mensagem.", "error")
             return redirect(url_for("avisos"))
-        
-        if sucesso > 0:
-            flash(f"Aviso enviado para {sucesso} {tipo_desc}. {erro} falhas.", "success")
-        else:
-            flash(f"Nenhum aviso foi enviado. {erro} falhas.", "error")
-        
+
+        clientes_para_enviar = []
+        if tipo_publico == "ativos":
+            clientes_para_enviar = db.listar_clientes_ativos()
+        elif tipo_publico == "expirando":
+            clientes_para_enviar = db.listar_clientes_expirando(7) # Dias fixos em 7 por enquanto
+        elif tipo_publico == "todos":
+            # Para \'todos\', precisamos de uma lista de todos os clientes com telefone e usuario_iptv
+            conn = db.get_connection()
+            clientes_raw = conn.execute("SELECT telefone, nome, usuario_iptv, data_expiracao FROM clientes WHERE telefone IS NOT NULL AND usuario_iptv IS NOT NULL").fetchall()
+            conn.close()
+            clientes_para_enviar = [dict(c) for c in clientes_raw]
+
+        if not clientes_para_enviar:
+            flash("Nenhum cliente encontrado para o público selecionado.", "info")
+            return redirect(url_for("avisos"))
+
+        from whatsapp_bot import enviar_mensagem_personalizada
+        mensagens_enviadas = 0
+        for cliente in clientes_para_enviar:
+            # Renderizar o template com os dados do cliente
+            mensagem_final = mensagem_base
+            if cliente.get("nome"):
+                mensagem_final = mensagem_final.replace("{{nome_cliente}}", cliente["nome"])
+            else:
+                mensagem_final = mensagem_final.replace("{{nome_cliente}}", "Cliente") # Fallback
+            
+            if cliente.get("usuario_iptv"):
+                mensagem_final = mensagem_final.replace("{{nome_lista}}", cliente["usuario_iptv"])
+                mensagem_final = mensagem_final.replace("{{id_lista}}", cliente["usuario_iptv"])
+            else:
+                mensagem_final = mensagem_final.replace("{{nome_lista}}", "sua lista")
+                mensagem_final = mensagem_final.replace("{{id_lista}}", "N/A")
+
+            if cliente.get("data_expiracao"):
+                data_exp = datetime.fromisoformat(cliente["data_expiracao"])
+                dias_restantes = (data_exp - datetime.now()).days
+                mensagem_final = mensagem_final.replace("{{data_vencimento}}", data_exp.strftime("%d/%m/%Y"))
+                mensagem_final = mensagem_final.replace("{{dias_restantes}}", str(dias_restantes))
+            else:
+                mensagem_final = mensagem_final.replace("{{data_vencimento}}", "N/A")
+                mensagem_final = mensagem_final.replace("{{dias_restantes}}", "N/A")
+
+            # Enviar a mensagem personalizada
+            enviar_mensagem_personalizada(cliente["telefone"], mensagem_final)
+            mensagens_enviadas += 1
+            # Pequena pausa para evitar bloqueio da API
+            time.sleep(1)
+
+        flash(f"Avisos enviados para {mensagens_enviadas} clientes!", "success")
         return redirect(url_for("avisos"))
-        
+
     except Exception as e:
+        print(f"❌ Erro ao enviar aviso: {str(e)}")
         flash(f"Erro ao enviar aviso: {str(e)}", "error")
         return redirect(url_for("avisos"))
 

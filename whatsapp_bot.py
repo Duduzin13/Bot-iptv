@@ -1,3 +1,4 @@
+
 # whatsapp_bot.py - WhatsApp Bot Melhorado com IA Aprimorada
 import base64
 import json
@@ -12,6 +13,8 @@ from config import Config
 from database import db
 whatsapp_blueprint = Blueprint('whatsapp', __name__)
 app = Flask(__name__)
+
+
 
 class WhatsAppBot:
     def __init__(self):
@@ -243,8 +246,12 @@ Se o problema persistir:
         
         return partes
 
-    #def iniciar_bot(self):
-        #####app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    def iniciar_bot(self):
+        """
+        Inicia o servidor Flask para receber webhooks.
+        """
+        print("🤖 Iniciando WhatsApp Bot...")
+        app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
 # Instância global do bot
 whatsapp_bot = WhatsAppBot()
@@ -254,9 +261,14 @@ def enviar_mensagem(telefone: str, mensagem: str) -> bool:
     """Função auxiliar para enviar mensagem"""
     return whatsapp_bot.enviar_mensagem(telefone, mensagem)
 
+def enviar_mensagem_personalizada(telefone: str, mensagem: str) -> bool:
+    """Função auxiliar para enviar mensagem personalizada, usando a instância do bot."""
+    return whatsapp_bot.enviar_mensagem(telefone, mensagem)
+
+
 # === ROTAS FLASK PARA WEBHOOKS ===
 
-@app.route('/webhook', methods=['GET', 'POST'])
+@whatsapp_blueprint.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     """
     Endpoint para receber webhooks do WhatsApp Business API.
@@ -285,7 +297,7 @@ def webhook():
             print(f"❌ Erro no webhook POST: {e}")
             return 'Error', 500
 
-@whatsapp_blueprint.route('/webhook', methods=['GET', 'POST'])
+@whatsapp_blueprint.route('/webhook/mercadopago', methods=['POST'])
 def webhook_mercadopago():
     """
     Webhook para receber notificações do Mercado Pago.
@@ -306,103 +318,7 @@ def webhook_mercadopago():
         print(f"❌ Erro no webhook Mercado Pago: {e}")
         return 'Error', 500
 
-# === FUNÇÕES DE BROADCAST ===
 
-def broadcast_para_clientes_ativos(mensagem: str) -> Tuple[int, int]:
-    """
-    Envia mensagem para todos os clientes com listas ativas.
-    """
-    clientes_ativos = db.listar_clientes_ativos()
-    sucesso = 0
-    erro = 0
-    
-    print(f"📡 Iniciando broadcast para {len(clientes_ativos)} clientes ativos...")
-    
-    for cliente in clientes_ativos:
-        try:
-            if whatsapp_bot.enviar_mensagem(cliente['telefone'], mensagem):
-                sucesso += 1
-            else:
-                erro += 1
-            
-            # Pausa entre envios para não sobrecarregar a API
-            time.sleep(0.5)
-            
-        except Exception as e:
-            print(f"❌ Erro ao enviar para {cliente['telefone']}: {e}")
-            erro += 1
-    
-    print(f"📊 Broadcast concluído: {sucesso} sucessos, {erro} falhas")
-    return sucesso, erro
-
-def broadcast_para_todos_clientes(mensagem: str) -> Tuple[int, int]:
-    """
-    Envia mensagem para TODOS os clientes cadastrados.
-    """
-    try:
-        conn = db.get_connection()
-        clientes = conn.execute("SELECT DISTINCT telefone FROM clientes").fetchall()
-        conn.close()
-        
-        sucesso = 0
-        erro = 0
-        
-        print(f"📡 Iniciando broadcast para {len(clientes)} clientes...")
-        
-        for cliente in clientes:
-            try:
-                if whatsapp_bot.enviar_mensagem(cliente['telefone'], mensagem):
-                    sucesso += 1
-                else:
-                    erro += 1
-                
-                # Pausa entre envios
-                time.sleep(0.5)
-                
-            except Exception as e:
-                print(f"❌ Erro ao enviar para {cliente['telefone']}: {e}")
-                erro += 1
-        
-        print(f"📊 Broadcast concluído: {sucesso} sucessos, {erro} falhas")
-        return sucesso, erro
-        
-    except Exception as e:
-        print(f"❌ Erro no broadcast geral: {e}")
-        return 0, 0
-
-def broadcast_para_clientes_expirando(mensagem: str, dias: int = 7) -> Tuple[int, int]:
-    """
-    Envia mensagem para clientes com listas expirando em X dias.
-    """
-    clientes_expirando = db.listar_clientes_expirando(dias)
-    sucesso = 0
-    erro = 0
-    
-    print(f"📡 Iniciando broadcast para {len(clientes_expirando)} clientes expirando...")
-    
-    for cliente in clientes_expirando:
-        try:
-            # Personalizar mensagem com dados do cliente
-            mensagem_personalizada = mensagem.replace(
-                "[USUARIO]", cliente.get('usuario_iptv', 'Cliente')
-            ).replace(
-                "[EXPIRACAO]", cliente.get('data_expiracao', 'em breve')
-            )
-            
-            if whatsapp_bot.enviar_mensagem(cliente['telefone'], mensagem_personalizada):
-                sucesso += 1
-            else:
-                erro += 1
-            
-            # Pausa entre envios
-            time.sleep(0.5)
-            
-        except Exception as e:
-            print(f"❌ Erro ao enviar para {cliente['telefone']}: {e}")
-            erro += 1
-    
-    print(f"📊 Broadcast concluído: {sucesso} sucessos, {erro} falhas")
-    return sucesso, erro
 
 # === FUNÇÕES AUXILIARES ===
 
