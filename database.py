@@ -1404,3 +1404,6 @@ class DatabaseManager:
             query = "SELECT * FROM templates_avisos WHERE DATE(data_atualizacao) BETWEEN ? AND ? ORDER BY data_atualizacao DESC"
             results = conn.execute(query, (inicio_semana.strftime('%Y-%m-%d'), fim_semana.strftime('%Y-%m-%d'))).fetchall()
             return [dict(row) for row in results]
+
+
+db = DatabaseManager()

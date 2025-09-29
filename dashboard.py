@@ -5,8 +5,8 @@ import json
 import os
 import sqlite3
 from config import Config
-from database import DatabaseManager
-db = DatabaseManager()
+from database import db
+
 from whatsapp_bot import enviar_mensagem_personalizada
 from mercpag import mercado_pago
 from bitpanel_automation import BitPanelManager
