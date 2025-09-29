@@ -943,3 +943,85 @@ def api_stats():
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
 
+
+
+
+@app.route("/clientes/criar_teste", methods=["GET", "POST"])
+def criar_teste_route():
+    """Rota para criar um teste de usuário no BitPanel e salvar no banco local."""
+    if request.method == "POST":
+        try:
+            print(f"➕ [DEBUG] Solicitada criação de teste...")
+            username = request.form["username"].strip()
+            telefone = request.form.get("telefone", "").strip() or None
+
+            if not username:
+                flash("O campo Nome de Usuário é obrigatório para criar um teste.", "error")
+                return render_template("adicionar_cliente.html", is_test_creation=True)
+
+            # Verificar se o usuário já existe no banco local
+            cliente_existente = db.buscar_cliente_por_usuario_iptv(username)
+            if cliente_existente:
+                flash(f"O usuário '{username}' já existe no sistema. Por favor, escolha outro nome para o teste.", "error")
+                return render_template("adicionar_cliente.html", is_test_creation=True)
+
+            manager = BitPanelManager()
+            dados_teste = manager.criar_teste(username=username, headless=True)
+            manager.close()
+
+            if "erro" in dados_teste:
+                flash("Erro ao criar teste no BitPanel: {}".format(dados_teste.get("erro")), "error")
+                return render_template("adicionar_cliente.html", is_test_creation=True)
+            
+            if dados_teste.get("status") == "parcial":
+                flash("Teste criado no BitPanel, mas houve um problema ao capturar os dados: {}".format(dados_teste.get("mensagem")), "warning")
+                # Tentar salvar o mínimo possível no banco local
+                db.adicionar_cliente(telefone=telefone, nome=username, usuario_iptv=username, senha_iptv="N/A", conexoes=1, data_criacao=None, data_expiracao=None, status="teste_parcial")
+                return render_template_string(REDIRECT_TEMPLATE, 
+                    message=f"Teste para {username} criado (parcialmente) com sucesso!",
+                    url=url_for("listar_clientes"))
+            
+            # --- CONVERSÃO DE DATAS ---
+            criado_em_dt = None
+            expira_em_dt = None
+            try:
+                if dados_teste.get("criado_em"):
+                    criado_em_dt = datetime.strptime(dados_teste.get("criado_em"), "%d/%m/%Y %H:%M")
+                if dados_teste.get("expira_em"):
+                    expira_em_dt = datetime.strptime(dados_teste.get("expira_em"), "%d/%m/%Y %H:%M")
+            except ValueError as e:
+                print(f"⚠️ [DEBUG] Erro ao converter data do BitPanel: {e}. As datas serão salvas como Nulas.")
+                flash("Aviso: Formato de data inválido do BitPanel. Teste salvo sem datas.", "warning")
+
+            # Salvar os dados do teste no banco de dados local
+            sucesso_db = db.adicionar_cliente(
+                telefone=telefone,
+                nome=username, # Usa o próprio username como nome padrão
+                usuario_iptv=dados_teste.get("usuario", username),
+                senha_iptv=dados_teste.get("senha", "N/A"),
+                conexoes=int(dados_teste.get("conexoes", 1)),
+                data_criacao=criado_em_dt,
+                data_expiracao=expira_em_dt,
+                status="teste"
+            )
+
+            if sucesso_db:
+                flash(f"Teste para {username} criado e salvo com sucesso!", "success")
+                return render_template_string(REDIRECT_TEMPLATE, 
+                    message=f"Teste para {username} criado e salvo com sucesso!",
+                    url=url_for("listar_clientes"))
+            else:
+                flash("Teste criado no BitPanel, mas falha ao salvar no banco de dados local (usuário talvez já exista).", "error")
+                return render_template("adicionar_cliente.html", is_test_creation=True)
+
+        except Exception as e:
+            print(f"❌ [DEBUG] Erro ao criar teste: {str(e)}")
+            flash(f"Ocorreu um erro ao criar o teste: {str(e)}", "error")
+            return render_template("adicionar_cliente.html", is_test_creation=True)
+
+    # Método GET: exibe o formulário de criação de teste
+    response = make_response(render_template("adicionar_cliente.html", is_test_creation=True))
+    return add_no_cache_headers(response)
+
+
+

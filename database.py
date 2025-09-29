@@ -22,6 +22,38 @@ class DatabaseManager:
         if self._conn:
             self._conn.close()
 
+    def adicionar_cliente(self, telefone: Optional[str], nome: str, usuario_iptv: str, senha_iptv: str, conexoes: int, data_criacao: Optional[datetime], data_expiracao: Optional[datetime], status: str) -> bool:
+        """Adiciona um cliente com todos os detalhes, ideal para salvar testes ou listas completas."""
+        try:
+            with self as conn:
+                conn.execute("""
+                    INSERT INTO clientes (telefone, nome, usuario_iptv, senha_iptv, conexoes, data_criacao, data_expiracao, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    telefone,
+                    nome,
+                    usuario_iptv,
+                    senha_iptv,
+                    conexoes,
+                    data_criacao,
+                    data_expiracao,
+                    status
+                ))
+                conn.commit()
+                print(f"[DB] Cliente/Teste '{usuario_iptv}' adicionado com sucesso.")
+                return True
+        except sqlite3.IntegrityError as e:
+            # Isso provavelmente significa que o usuario_iptv já existe
+            print(f"[DB] Erro de integridade ao adicionar '{usuario_iptv}': {e}. O usuário provavelmente já existe.")
+            self.log_sistema("erro", f"Tentativa de adicionar usuário duplicado: {usuario_iptv}", str(e))
+            return False
+        except Exception as e:
+            print(f"[DB] Erro ao adicionar cliente completo '{usuario_iptv}': {e}")
+            self.log_sistema("erro", f"Erro em adicionar_cliente para {usuario_iptv}", str(e))
+            traceback.print_exc()
+            return False
+
+    
     def init_database(self):
         with self as conn:
             # Criação das tabelas

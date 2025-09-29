@@ -163,6 +163,8 @@ class GeminiBot:
             return self.informacao_preco()
         elif intencao == "dispositivo":
             return self.informacao_dispositivos()
+        elif intencao == "link_acesso":
+            return self.fornecer_link_acesso(telefone)
         else:
             return self.menu_erro("Não entendi sua mensagem.", telefone)
 
@@ -176,8 +178,8 @@ class GeminiBot:
         palavras_saudacao = ["oi", "olá", "ola", "hey", "hello", "bom dia", "boa tarde", "boa noite"]
         palavras_ajuda = ["ajuda", "help", "socorro", "não sei", "como", "menu", "opções"]
         palavras_preco = ["preço", "preco", "valor", "quanto custa", "quanto é", "quanto fica", "custo"]
-        palavras_dispositivo = ["dispositivo", "aparelho", "celular", "tv", "smart tv", "android", "ios", "windows", "funciona"]
-
+        palavras_dispositivo = ["dispositivo", "aparelho", "celular", "tv", "smart tv", "android", "ios", "windows", "funciona", ]
+        palavras_link = ["link", "acesso", "site", "endereço", "url", "portal"]
         if any(p in msg_lower for p in palavras_comprar):
             return "comprar"
         elif any(p in msg_lower for p in palavras_renovar):
@@ -192,7 +194,35 @@ class GeminiBot:
             return "preco"
         elif any(p in msg_lower for p in palavras_dispositivo):
             return "dispositivo"
+        elif any(p in msg_lower for p in palavras_link):
+            return "link_acesso"
         return "desconhecido"
+
+    def fornecer_link_acesso(self, telefone: str) -> str:
+        """Fornece o link de acesso e orienta o cliente."""
+        link = db.get_config("link_acesso", Config.LINK_ACESSO_DEFAULT)
+        
+        # Verifica se o cliente tem uma lista ativa para dar uma resposta mais útil
+        cliente = db.buscar_cliente_por_telefone(telefone)
+        
+        if cliente and cliente.get("usuario_iptv"):
+            # Cliente existe e tem pelo menos uma lista
+            return f"""🔗 **O link principal de acesso é:**
+`{link}`
+
+Você pode usar este link no seu aplicativo ou navegador.
+
+💡 Se precisar ver seus dados completos (usuário, senha, validade), digite **3** para **Consultar minhas listas**."""
+        else:
+            # Cliente não existe ou não tem lista
+            return f"""🔗 **O link principal de acesso é:**
+`{link}`
+
+Para utilizá-lo, você precisa de um usuário e senha.
+
+**Gostaria de criar sua lista agora?**
+**1️⃣** - Sim, criar nova lista
+**2️⃣** - Voltar ao menu principal"""
 
     def informacao_preco(self) -> str:
         """Informações sobre preços"""
@@ -247,8 +277,8 @@ Nosso serviço funciona em diversos dispositivos!
 2. Baixe o aplicativo BIT PLAYER para Android
 3. Instale e configure com seus dados de acesso
 
-✅ **Período de teste:** 7 dias grátis
-💳 **Após teste:** Plano anual ou vitalício disponível
+✅ **Aplicativo GRÁTIS**
+
 
 📞 **Renovação:** WhatsApp 11 96751-2034
 👤 **Contato:** Eduardo Gabriel
@@ -335,7 +365,7 @@ Para outros dispositivos:
 
 **1️⃣** - Criar nova lista IPTV
 **2️⃣** - Renovar lista existente  
-**3️⃣** - Consultar meus dados
+**3️⃣** - Consultar minhas listas
 
 *Digite apenas o número da opção desejada*
 
@@ -355,7 +385,7 @@ Para outros dispositivos:
 
 **1️⃣** - Criar nova lista IPTV
 **2️⃣** - Renovar lista existente  
-**3️⃣** - Consultar meus dados"""
+**3️⃣** - Consultar minhas listas"""
 
     def menu_erro(self, mensagem_erro: str, telefone: str) -> str:
         db.set_conversa(telefone, "inicial", "menu_erro", json.dumps({}))

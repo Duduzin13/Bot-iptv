@@ -297,23 +297,22 @@ class BitPanelManager:
                             "max connections": "conexoes",
                             "numero de conexões": "conexoes",
                             "número de conexões": "conexoes",
+                            "máximo de conexões": "conexoes",
                             # Data de Criação (CRÍTICO)
-                            "data_de_criacao": "criado_em",
+                            "data de criação": "criado_em", # <-- CORRIGIDO PARA MINÚSCULAS
                             "criado": "criado_em",
-                            "Data de criação": "criado_em",
                             "data criação": "criado_em",
                             "data criacao": "criado_em",
                             "created at": "criado_em",
                             "created": "criado_em",
                             "creation date": "criado_em",
                             # Data de Expiração (CRÍTICO)
-                            "data_de_validade": "expira_em",
+                            "data de validade": "expira_em", # <-- CORRIGIDO PARA MINÚSCULAS
                             "expira": "expira_em",
                             "data de expiração": "expira_em",
                             "data expiracao": "expira_em",
                             "data expiração": "expira_em",
                             "validade": "expira_em",
-                            "Data de validade": "expira_em",
                             "expires at": "expira_em",
                             "expires": "expira_em",
                             "expiration date": "expira_em",
@@ -332,7 +331,6 @@ class BitPanelManager:
                             "active": "status_bitpanel",
                             "state": "status_bitpanel",
                         }
-
                         # Normalizar chave (minúsculas, sem espaços extras)
                         chave_normalizada = chave_original.lower().strip()
 
@@ -793,7 +791,101 @@ class BitPanelManager:
             self.driver.save_screenshot("erro_renovacao.png")
             return {"erro": f"Erro inesperado: {str(e)}"}
 
+
+    def criar_teste(self, username: str, headless=False) -> dict:
+        """
+        Cria um teste de usuário no BitPanel com o nome de usuário fornecido.
+        """
+        if not self.login(headless=headless):
+            print("❌ Falha no login. Abortando criação de teste.")
+            return {"erro": "Falha no login"}
+
+        try:
+            print(f"🔄 Criando teste para o usuário: {username}")
+            # Navegar para a página de criação de teste, se houver uma URL direta
+            # Caso contrário, navegar para o dashboard e clicar no botão 'Criar teste'
+            # Assumindo que o botão 'Criar teste' está no dashboard ou em uma página acessível após o login
+            
+            # Navegar para o dashboard para garantir que o botão esteja visível
+            list_url = f"{self.config.BITPANEL_URL}list"
+            self.driver.get(list_url)
+            print(f"   - Navegando para o dashboard: {list_url}")
+            
+            wait = WebDriverWait(self.driver, 20)
+
+        
+            # --- PASSO 1: Clicar no botão 'Criar teste' ---
+            print("   - 1. Clicando no botão 'Criar teste'...")
+            criar_teste_button = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//button[contains(@class, 'btn-test') and .//span[contains(text(), 'Criar teste')]]")
+                )
+            )
+            self.driver.execute_script("arguments[0].click();", criar_teste_button)
+            time.sleep(2) # Esperar o modal/página de criação de teste carregar
+
+            # --- PASSO 2: Escrever o nome de usuário ---
+            print(f"   - 2. Inserindo nome de usuário: {username}")
+            username_field = wait.until(
+                EC.presence_of_element_located((By.XPATH, "//label[contains(text(), 'Nome do usuário')]/following-sibling::input"))
+            )
+            username_field.clear()
+            username_field.send_keys(username)
+
+            # --- PASSO 3.1: Clicar no dropdown 'Selecione o plano de tv' ---
+            print("   - 3.1. Clicando no dropdown 'Selecione o plano de tv'...")
+            plano_tv_dropdown = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//div[@role='button' and .//label[contains(text(), 'Selecione o plano de tv')]]")
+                )
+            )
+            self.driver.execute_script("arguments[0].click();", plano_tv_dropdown)
+            time.sleep(1) # Esperar as opções carregarem
+
+            # --- PASSO 3.2: Selecionar a opção 'Full HD + H265 + HD + SD + VOD + Adulto + LGBT' ---
+            print("   - 3.2. Selecionando plano 'Full HD + H265 + HD + SD + VOD + Adulto + LGBT'...")
+            plano_tv_option = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//div[contains(@class, 'v-list-item__title') and normalize-space(text()) = 'Full HD + H265 + HD + SD + VOD + Adulto + LGBT']")
+                )
+            )
+            self.driver.execute_script("arguments[0].click();", plano_tv_option)
+            time.sleep(1) # Esperar a seleção ser aplicada
+
+            # --- PASSO 4: Clicar no botão 'Criar' ---
+            print("   - 4. Clicando no botão 'Criar' para finalizar...")
+            criar_button = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//button[contains(@class, 'primary') and .//span[contains(text(), 'Criar')]]")
+                )
+            )
+            self.driver.execute_script("arguments[0].click();", criar_button)
+            time.sleep(3) # Esperar a criação e o carregamento das informações
+
+            # --- PASSO 5: Extrair os Dados da Lista Criada ---
+            print("   - 5. Capturando informações do teste criado...")
+            dados_finais = self._extrair_dados_lista(wait)
+
+            if dados_finais:
+                print(f"\n🎉 SUCESSO! Teste para '{dados_finais.get('usuario', username)}' foi criado e dados foram capturados.")
+                return dados_finais
+            else:
+                print("\n⚠️ AVISO: O teste pode ter sido criado, mas não foi possível capturar os dados da página de confirmação.")
+                return {"status": "parcial", "usuario": username, "mensagem": "Teste criado, mas falha ao capturar dados."}
+
+        except TimeoutException as e:
+            print(f"❌ ERRO DE AUTOMAÇÃO (TIMEOUT): Um elemento não foi encontrado a tempo. Erro: {e}")
+            self.driver.save_screenshot("erro_timeout_criar_teste.png")
+            print("   - Screenshot 'erro_timeout_criar_teste.png' salvo para análise.")
+            return {"erro": f"Timeout: {str(e)}"}
+        except Exception as e:
+            print(f"❌ ERRO INESPERADO ao criar teste: {e}")
+            self.driver.save_screenshot("erro_inesperado_criar_teste.png")
+            print("   - Screenshot 'erro_inesperado_criar_teste.png' salvo para análise.")
+            return {"erro": f"Erro inesperado: {str(e)}"}
+
     def sincronizar_dados_usuario(self, username: str, headless=True) -> dict:
+
         """
         Busca um usuário pelo nome e captura suas informações atualizadas.
         VERSÃO MELHORADA com logs detalhados
