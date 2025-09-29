@@ -18,6 +18,8 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 from config import Config
 from selenium.webdriver.common.keys import Keys
 
+
+
 # Mock do objeto 'db' para o código funcionar de forma independente
 class MockDB:
     def log_sistema(self, tipo, mensagem):
@@ -51,7 +53,9 @@ class BitPanelManager:
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--window-size=1920,1080')
         options.add_argument("--disable-blink-features=AutomationControlled")
-        
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--single-process") 
 
         
         # Desativa completamente o gerenciador de senhas do Chrome
