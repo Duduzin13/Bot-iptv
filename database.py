@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from config import Config
 
-
 class DatabaseManager:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or Config.DATABASE_PATH
@@ -125,6 +124,39 @@ class DatabaseManager:
                 (nome, assunto, corpo, tipo),
             )
         conn.commit()
+    def atualizar_dados_sincronizados(self, usuario_iptv: str, dados_sync: dict) -> bool:
+        """Atualiza os dados sincronizados do cliente no banco local."""
+        try:
+            conn = self.get_connection()
+            try:
+                # Atualizar também a última sincronização
+                conn.execute("""
+                    UPDATE clientes
+                    SET
+                        senha_iptv = ?,
+                        plano = ?,
+                        conexoes = ?,
+                        data_expiracao = ?,
+                        data_criacao = ?,
+                        ultima_sincronizacao = ?
+                    WHERE usuario_iptv = ?
+                """, (
+                    dados_sync.get("senha"),
+                    dados_sync.get("plano"),
+                    int(dados_sync.get("conexoes", 1)),
+                    datetime.strptime(dados_sync.get("expira_em"), "%d/%m/%Y %H:%M").isoformat() if dados_sync.get("expira_em") else None,
+                    datetime.strptime(dados_sync.get("criado_em"), "%d/%m/%Y %H:%M").isoformat() if dados_sync.get("criado_em") else None,
+                    datetime.now(),
+                    usuario_iptv
+                ))
+                conn.commit()
+                return True
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[DB] Erro ao atualizar dados sincronizados: {e}")
+            traceback.print_exc()
+            return False
 
     # === MÉTODOS PARA TEMPLATES DE AVISOS ===
 
@@ -282,8 +314,8 @@ class DatabaseManager:
                 f"[DB] Data de expiração de {usuario_iptv} atualizada para {nova_expiracao.strftime('%d/%m/%Y')}"
             )
 
-    def atualizar_cliente_manual(self, usuario_iptv: str, dados: Dict) -> bool:
-        """Atualiza dados de um cliente manualmente"""
+    def atualizar_cliente_manual_por_id(self, cliente_id: int, dados: Dict) -> bool:
+        """Atualiza dados de um cliente manualmente - CORRIGIDO"""
         with self as conn:
             updates = []
             params = []
@@ -301,10 +333,8 @@ class DatabaseManager:
                     params.append(valor)
 
             if updates:
-                params.append(usuario_iptv)
-                query = (
-                    f"UPDATE clientes SET {', '.join(updates)} WHERE usuario_iptv = ?"
-                )
+                params.append(cliente_id)  # CORRIGIDO: usar cliente_id
+                query = f"UPDATE clientes SET {', '.join(updates)} WHERE id = ?"  # CORRIGIDO
                 conn.execute(query, params)
                 conn.commit()
                 return True
@@ -390,25 +420,43 @@ class DatabaseManager:
 
     # === MÉTODOS PARA PAGAMENTOS ===
 
+    # database.py
+
     def criar_pagamento(
         self,
         cliente_id: int,
+        telefone: str,
         valor: float,
         payment_id: str,
         copia_cola: str,
         contexto: str = "comprar",
         dados_temporarios: str = None,
     ):
-        """Criar registro de pagamento"""
+        """Criar registo de pagamento (VERSÃO FINAL E CORRIGIDA)"""
         with self as conn:
+            # Garante que a coluna 'copia_cola' existe na tabela
+            try:
+                conn.execute("ALTER TABLE pagamentos ADD COLUMN copia_cola TEXT")
+            except sqlite3.OperationalError:
+                pass  # A coluna já existe, ignora o erro e continua
+
+            # Instrução INSERT sintaticamente correta
             conn.execute(
                 """
-                INSERT INTO pagamentos (cliente_id, valor, payment_id, contexto, dados_temporarios)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO pagamentos (cliente_id, telefone, valor, payment_id, copia_cola, contexto, dados_temporarios)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-                (cliente_id, valor, payment_id, contexto, dados_temporarios),
+                (
+                    cliente_id,
+                    telefone,
+                    valor,
+                    payment_id,
+                    copia_cola,
+                    contexto,
+                    dados_temporarios,
+                ),
             )
-            conn.commit()
+            conn.commit()   
 
     def buscar_pagamento(self, payment_id: str) -> Optional[Dict]:
         with self as conn:
@@ -433,6 +481,26 @@ class DatabaseManager:
             return [dict(row) for row in results]
 
     # === MÉTODOS PARA CONFIGURAÇÕES ===
+
+    # ADICIONE ESTA FUNÇÃO
+    def get_cliente_by_id(self, cliente_id: int) -> Optional[Dict]:
+        """Busca um cliente pelo seu ID único."""
+        with self as conn:
+            result = conn.execute("SELECT * FROM clientes WHERE id = ?", (cliente_id,)).fetchone()
+            return dict(result) if result else None
+
+    # ADICIONE ESTA FUNÇÃO
+    def excluir_cliente_por_id(self, cliente_id: int) -> bool:
+        """Exclui um cliente e seus pagamentos pelo ID."""
+        with self as conn:
+            # Primeiro, exclui os pagamentos associados para manter a integridade
+            conn.execute("DELETE FROM pagamentos WHERE cliente_id = ?", (cliente_id,))
+            # Depois, exclui o cliente
+            cursor = conn.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
+            conn.commit()
+            self.log_sistema("info", f"Cliente ID {cliente_id} excluído do banco")
+            return cursor.rowcount > 0
+
 
     def get_config(self, chave: str, default: str = None) -> Optional[str]:
         with self as conn:

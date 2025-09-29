@@ -13,6 +13,8 @@ from bitpanel_automation import BitPanelManager
 import time
 import os
 
+
+
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
 # REGISTRAR O BLUEPRINT DO WHATSAPP
@@ -234,19 +236,21 @@ def api_contar_clientes(tipo):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/clientes/gerenciar/<usuario_iptv>")
-def gerenciar_cliente(usuario_iptv):
+@app.route("/clientes/gerenciar/<int:cliente_id>")
+def gerenciar_cliente(cliente_id):
     """Página para gerenciar um cliente específico - APENAS DADOS LOCAIS"""
     try:
-        print(f"⚙️ [DEBUG] Carregando gerenciamento do cliente: {usuario_iptv}")
+        print(f"⚙️ [DEBUG] Carregando gerenciamento do cliente ID: {cliente_id}")
         
-        cliente = db.buscar_cliente_por_usuario_iptv(usuario_iptv)
+        cliente = db.get_cliente_by_id(cliente_id)
         if not cliente:
-            print(f"❌ [DEBUG] Cliente {usuario_iptv} não encontrado")
+            print(f"❌ [DEBUG] Cliente ID {cliente_id} não encontrado")
             flash("Cliente não encontrado", "error")
             return redirect(url_for("listar_clientes"))
         
-        print(f"✅ [DEBUG] Cliente encontrado: {cliente}")
+        # Agora sim, podemos pegar o usuario_iptv do cliente
+        usuario_iptv = cliente.get('usuario_iptv', 'N/A')
+        print(f"✅ [DEBUG] Cliente encontrado: {usuario_iptv} (ID: {cliente_id})")
         
         # Adicionamos a função now() para ser usada no template
         def get_now():
@@ -261,6 +265,8 @@ def gerenciar_cliente(usuario_iptv):
     
     except Exception as e:
         print(f"❌ [DEBUG] Erro ao carregar dados do cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao carregar dados do cliente: {str(e)}", "error")
         return redirect(url_for("listar_clientes"))
 
@@ -293,20 +299,25 @@ def api_cliente_info(usuario_iptv):
         response = make_response(jsonify({"error": str(e)}), 500)
         return add_no_cache_headers(response)
 
-@app.route("/clientes/sincronizar/<usuario_iptv>", methods=["POST"])
-def sincronizar_cliente(usuario_iptv):
+@app.route("/clientes/sincronizar/<int:cliente_id>", methods=["POST"])
+def sincronizar_cliente(cliente_id):
     """
     Sincroniza dados do cliente com o BitPanel - VERSÃO CORRIGIDA
     """
     try:
-        print(f"🔄 [SYNC] Iniciando sincronização do cliente: {usuario_iptv}")
+        print(f"🔄 [SYNC] Iniciando sincronização do cliente ID: {cliente_id}")
         
-        # Verificar se cliente existe no banco local
-        cliente_local = db.buscar_cliente_por_usuario_iptv(usuario_iptv)
+        # Buscar cliente pelo ID
+        cliente_local = db.get_cliente_by_id(cliente_id)
         if not cliente_local:
-            print(f"❌ [SYNC] Cliente {usuario_iptv} não encontrado no banco local")
-            flash(f"Cliente {usuario_iptv} não encontrado", "error")
+            print(f"❌ [SYNC] Cliente ID {cliente_id} não encontrado no banco local")
+            flash(f"Cliente não encontrado", "error")
             return redirect(url_for("listar_clientes"))
+        
+        usuario_iptv = cliente_local.get('usuario_iptv')
+        if not usuario_iptv:
+            flash("Cliente não possui usuário IPTV para sincronizar", "error")
+            return redirect(url_for("gerenciar_cliente", cliente_id=cliente_id))
         
         print(f"📋 [SYNC] Cliente local antes da sync: {cliente_local}")
         
@@ -318,7 +329,7 @@ def sincronizar_cliente(usuario_iptv):
         if not manager.login(headless=True):
             print(f"❌ [SYNC] Falha no login do BitPanel")
             flash("Erro ao conectar com o BitPanel", "error")
-            return redirect(url_for("gerenciar_cliente", usuario_iptv=usuario_iptv))
+            return redirect(url_for("gerenciar_cliente", cliente_id=cliente_id))
         
         # Sincronizar dados do usuário
         dados_sync = manager.sincronizar_dados_usuario(usuario_iptv, headless=True)
@@ -328,7 +339,7 @@ def sincronizar_cliente(usuario_iptv):
             print(f"❌ [SYNC] Erro na sincronização: {dados_sync['erro']}")
             flash(f"Erro na sincronização: {dados_sync['erro']}", "error")
             manager.close()
-            return redirect(url_for("gerenciar_cliente", usuario_iptv=usuario_iptv))
+            return redirect(url_for("gerenciar_cliente", cliente_id=cliente_id))
         
         # ATUALIZAR O BANCO DE DADOS
         print(f"💾 [SYNC] Salvando dados no banco...")
@@ -357,11 +368,11 @@ def sincronizar_cliente(usuario_iptv):
                 print(f"ℹ️ [SYNC] Nenhuma mudança detectada - dados já estavam atualizados")
                 flash(f"Dados sincronizados - nenhuma mudança necessária", "info")
             
+            manager.close()
+            
             # FORÇAR RECARREGAMENTO COM CACHE BUSTING
             timestamp = int(time.time())
             redirect_url = url_for("listar_clientes") + f"?sync_success={timestamp}&user={usuario_iptv}"
-            
-            manager.close()
             
             # Usar template JavaScript para forçar recarregamento TOTAL
             return render_template_string(f"""
@@ -420,19 +431,27 @@ def sincronizar_cliente(usuario_iptv):
         import traceback
         traceback.print_exc()
         flash(f"Erro na sincronização: {str(e)}", "error")
-        db.log_sistema("erro", f"Erro sincronização {usuario_iptv}: {str(e)}")
+        db.log_sistema("erro", f"Erro sincronização ID {cliente_id}: {str(e)}")
     
-    return redirect(url_for("gerenciar_cliente", usuario_iptv=usuario_iptv))
+    return redirect(url_for("gerenciar_cliente", cliente_id=cliente_id))
 
 
-@app.route("/clientes/editar/<usuario_iptv>", methods=["POST"])
-def editar_cliente_route(usuario_iptv):
+@app.route("/clientes/editar/<int:cliente_id>", methods=["POST"])
+def editar_cliente_route(cliente_id):
     """
     Edita dados do cliente APENAS NO BANCO DE DADOS LOCAL.
     Esta função NÃO se comunica com o BitPanel.
     """
     try:
-        print(f"✏️ [DEBUG] Editando cliente: {usuario_iptv}")
+        print(f"✏️ [DEBUG] Editando cliente ID: {cliente_id}")
+        
+        # Buscar cliente pelo ID
+        cliente = db.get_cliente_by_id(cliente_id)
+        if not cliente:
+            flash("Cliente não encontrado", "error")
+            return redirect(url_for("listar_clientes"))
+        
+        usuario_iptv = cliente.get('usuario_iptv', 'N/A')
         
         # Obter dados do formulário da página "gerenciar_cliente.html"
         conexoes = request.form.get("conexoes")
@@ -453,13 +472,12 @@ def editar_cliente_route(usuario_iptv):
         
         # Adiciona meses à data de expiração, se foi preenchido
         if meses and meses > 0:
-            cliente_atual = db.buscar_cliente_por_usuario_iptv(usuario_iptv)
             data_base = datetime.now()
             
-            if cliente_atual and cliente_atual.get("data_expiracao"):
+            if cliente.get("data_expiracao"):
                 try:
                     # Usa a data de expiração atual como base se ela ainda for válida
-                    data_expiracao_atual = datetime.fromisoformat(cliente_atual["data_expiracao"])
+                    data_expiracao_atual = datetime.fromisoformat(cliente["data_expiracao"])
                     if data_expiracao_atual > data_base:
                         data_base = data_expiracao_atual
                 except:
@@ -473,11 +491,11 @@ def editar_cliente_route(usuario_iptv):
         
         # Se houver dados para atualizar, salva no banco
         if novos_dados_banco:
-            if db.atualizar_cliente_manual(usuario_iptv, novos_dados_banco):
+            if db.atualizar_cliente_manual_por_id(cliente_id, novos_dados_banco):
                 print(f"✅ [DEBUG] Cliente atualizado com sucesso!")
                 
                 # Verificar se os dados foram realmente salvos
-                cliente_atualizado = db.buscar_cliente_por_usuario_iptv(usuario_iptv)
+                cliente_atualizado = db.get_cliente_by_id(cliente_id)
                 print(f"🔍 [DEBUG] Cliente após edição: {cliente_atualizado}")
                 
                 # Usar template JavaScript para forçar recarregamento
@@ -493,18 +511,24 @@ def editar_cliente_route(usuario_iptv):
     
     except Exception as e:
         print(f"❌ [DEBUG] Erro ao editar cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao editar cliente: {str(e)}", "error")
     
-    return redirect(url_for("gerenciar_cliente", usuario_iptv=usuario_iptv))
+    return redirect(url_for("gerenciar_cliente", cliente_id=cliente_id))
 
-@app.route("/clientes/excluir/<usuario_iptv>", methods=["POST"])
-def excluir_cliente_route(usuario_iptv):
+@app.route("/clientes/excluir/<int:cliente_id>", methods=["POST"])
+def excluir_cliente_route(cliente_id):
     """Exclui cliente APENAS do banco local - NÃO MEXE NO BITPANEL"""
     try:
-        print(f"🗑️ [DEBUG] Excluindo cliente: {usuario_iptv}")
+        print(f"🗑️ [DEBUG] Excluindo cliente ID: {cliente_id}")
+        
+        # Buscar cliente para pegar o nome/usuario antes de excluir
+        cliente = db.get_cliente_by_id(cliente_id)
+        usuario_iptv = cliente.get('usuario_iptv', 'Cliente') if cliente else 'Cliente'
         
         # Excluir apenas do banco local
-        excluido_banco = db.excluir_cliente(usuario_iptv)
+        excluido_banco = db.excluir_cliente_por_id(cliente_id)
         
         if excluido_banco:
             print(f"✅ [DEBUG] Cliente excluído com sucesso!")
@@ -515,14 +539,17 @@ def excluir_cliente_route(usuario_iptv):
                 url=url_for("listar_clientes"))
         else:
             print(f"❌ [DEBUG] Falha ao excluir cliente do banco")
-            flash(f"Falha ao excluir cliente {usuario_iptv} do banco local", "error")
+            flash(f"Falha ao excluir cliente do banco local", "error")
     
     except Exception as e:
         print(f"❌ [DEBUG] Erro ao excluir cliente: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao excluir cliente: {str(e)}", "error")
-        db.log_sistema("erro", f"Erro excluir local {usuario_iptv}: {str(e)}")
+        db.log_sistema("erro", f"Erro excluir local ID {cliente_id}: {str(e)}")
     
     return redirect(url_for("listar_clientes"))
+
 
 @app.route("/clientes/adicionar", methods=["GET", "POST"])
 def adicionar_cliente():
@@ -753,6 +780,35 @@ def relatorio_sincronizacao():
         print(f"Erro ao gerar relatório de sincronização: {e}")
         flash(f"Erro ao gerar relatório de sincronização: {str(e)}", "error")
         return redirect(url_for("listar_clientes"))
+    
+    
+@app.route("/api/cliente/<int:cliente_id>/info")
+def api_cliente_info_by_id(cliente_id):
+    """API para obter informações atualizadas de um cliente específico pelo ID"""
+    try:
+        cliente = db.get_cliente_by_id(cliente_id)
+        if cliente:
+            # Adicionar informações extras
+            if cliente.get('data_expiracao'):
+                try:
+                    data_exp = datetime.fromisoformat(cliente['data_expiracao'])
+                    dias_restantes = (data_exp - datetime.now()).days
+                    cliente['dias_restantes'] = dias_restantes
+                    cliente['status_calculado'] = 'ativo' if dias_restantes > 0 else 'expirado'
+                except:
+                    cliente['dias_restantes'] = None
+                    cliente['status_calculado'] = 'indefinido'
+            
+            cliente['timestamp_consulta'] = datetime.now().isoformat()
+            
+            response = make_response(jsonify(cliente))
+            return add_no_cache_headers(response)
+        else:
+            response = make_response(jsonify({"error": "Cliente não encontrado"}), 404)
+            return add_no_cache_headers(response)
+    except Exception as e:
+        response = make_response(jsonify({"error": str(e)}), 500)
+        return add_no_cache_headers(response)
 
 @app.route("/clientes/sincronizar/todos", methods=["POST"])
 def sincronizar_todos_clientes():

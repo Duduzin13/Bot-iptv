@@ -1,3 +1,10 @@
+<!-- templates/clientes.html -->
+{% extends "base.html" %}
+{% block nav_clientes %}active{% endblock %}
+{% block page_title %}Gerenciar Clientes{% endblock %}
+{% block page_icon %}<i class="bi bi-people"></i>{% endblock %}
+
+{% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <p class="text-muted mb-0">Gerencie todos os clientes e suas listas IPTV</p>
@@ -27,20 +34,6 @@
             </ul>
         </div>
     </div>
-</div><!-- templates/clientes.html -->
-{% extends "base.html" %}
-{% block nav_clientes %}active{% endblock %}
-{% block page_title %}Gerenciar Clientes{% endblock %}
-{% block page_icon %}<i class="bi bi-people"></i>{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <p class="text-muted mb-0">Gerencie todos os clientes e suas listas IPTV</p>
-    </div>
-    <a href="/clientes/adicionar" class="btn btn-primary">
-        <i class="bi bi-person-plus"></i> Adicionar Cliente
-    </a>
 </div>
 
 <div class="card shadow-sm">
@@ -126,9 +119,9 @@
                         </td>
                         <td>
                             {% if cliente.usuario_iptv %}
-                                <code class="bg-light px-2 py-1 rounded">{{ cliente.usuario_iptv }}</code>
+                                <code>{{ cliente.usuario_iptv }}</code>
                             {% else %}
-                                <span class="text-muted">—</span>
+                                <span class="text-muted fst-italic">Sem lista</span>
                             {% endif %}
                         </td>
                         <td>
@@ -168,21 +161,19 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if cliente.usuario_iptv %}
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('gerenciar_cliente', usuario_iptv=cliente.usuario_iptv) }}" 
-                                       class="btn btn-sm btn-outline-primary" title="Gerenciar">
-                                        <i class="bi bi-gear"></i>
-                                    </a>
-                                    <form method="POST" action="{{ url_for('sincronizar_cliente', usuario_iptv=cliente.usuario_iptv) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-info" title="Sincronizar">
-                                            <i class="bi bi-arrow-repeat"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('gerenciar_cliente', cliente_id=cliente.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" title="Gerenciar">
+                                    <i class="bi bi-gear"></i>
+                                </a>
+                                {% if cliente.usuario_iptv %}
+                                <form method="POST" action="{{ url_for('sincronizar_cliente', cliente_id=cliente.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-info" title="Sincronizar">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
