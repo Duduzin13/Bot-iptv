@@ -83,19 +83,22 @@
             <p>Painel de Controle e Monitoramento</p>
         </div>
         
+        
         <div class="stats-grid">
-            <div class="stat-card primary">
-                <div class="stat-number">{{ stats.listas_ativas or 0 }}</div>
-                <div class="stat-label">Listas Ativas</div>
-            </div>
-            <div class="stat-card success">
-                <div class="stat-number">R$ {{ "%.2f"|format(stats.vendas_mes or 0) }}</div>
-                <div class="stat-label">Vendas do Mes</div>
-            </div>
-            <div class="stat-card warning">
-                <div class="stat-number">{{ stats.expirando_7_dias or 0 }}</div>
-                <div class="stat-label">Expirando (7 dias)</div>
-            </div>
+                    <div class="stat-card primary">
+                        {% set listas_ativas = [] %}
+                        {% for cliente in clientes %}
+                            {% if cliente.status_lista == 'Ativo' %}
+                                {% set _ = listas_ativas.append(cliente) %}
+                            {% endif %}
+                        {% endfor %}
+                        <div class="stat-number">{{ listas_ativas|length }}</div>
+                        <small class="stat-label">Listas Ativas</small>
+                    </div>
+                </div>
+           
+
+            
             <div class="stat-card danger">
                 <div class="stat-number">
                     <span class="{{ 'status-online' if stats.bitpanel_online else 'status-offline' }}">
