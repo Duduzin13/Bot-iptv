@@ -2,7 +2,7 @@
 FROM python:3.11-slim-bookworm
 
 # 2. Defina o diretório de trabalho dentro do contêiner
-WORKDIR /app
+WORKDIR /main
 
 # 3. Instale as dependências do sistema (incluindo o Google Chrome)
 # Usamos apt-get aqui porque a imagem base é Debian e nós temos controle

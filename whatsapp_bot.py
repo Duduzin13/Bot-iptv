@@ -3,14 +3,14 @@ import base64
 import json
 import requests
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Blueprint
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import threading
 
 from config import Config
 from database import db
-
+whatsapp_blueprint = Blueprint('whatsapp', __name__)
 app = Flask(__name__)
 
 class WhatsAppBot:
@@ -243,12 +243,8 @@ Se o problema persistir:
         
         return partes
 
-    def iniciar_bot(self):
-        """
-        Inicia o servidor Flask para receber webhooks.
-        """
-        print("🤖 Iniciando WhatsApp Bot...")
-        app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    #def iniciar_bot(self):
+        #####app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
 # Instância global do bot
 whatsapp_bot = WhatsAppBot()
@@ -289,7 +285,7 @@ def webhook():
             print(f"❌ Erro no webhook POST: {e}")
             return 'Error', 500
 
-@app.route('/webhook/mercadopago', methods=['POST'])
+@whatsapp_blueprint.route('/webhook', methods=['GET', 'POST'])
 def webhook_mercadopago():
     """
     Webhook para receber notificações do Mercado Pago.
@@ -434,7 +430,7 @@ def testar_whatsapp_api() -> bool:
         print(f"❌ Erro no teste da API WhatsApp: {e}")
         return False
 
-@app.route('/test', methods=['GET'])
+@whatsapp_blueprint.route('/test', methods=['GET'])
 def test_endpoint():
     """
     Endpoint para testar se o servidor está funcionando.
@@ -445,7 +441,7 @@ def test_endpoint():
         "message": "WhatsApp Bot está funcionando!"
     })
 
-@app.route('/health', methods=['GET'])
+@whatsapp_blueprint.route('/health', methods=['GET'])
 def health_check():
     """
     Endpoint de health check.

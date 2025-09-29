@@ -11,6 +11,9 @@ import time
 
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
+# REGISTRAR O BLUEPRINT DO WHATSAPP
+from whatsapp_bot import whatsapp_blueprint
+app.register_blueprint(whatsapp_blueprint)
 
 # Template para redirecionamento com JavaScript ULTRA ROBUSTO
 REDIRECT_TEMPLATE = """
