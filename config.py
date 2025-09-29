@@ -29,7 +29,7 @@ class Config:
     
     # --- Sistema ---
     FLASK_PORT = 5000
-    WHATSAPP_PORT = 5001
+    WHATSAPP_PORT = 5000
     FLASK_HOST = '0.0.0.0'
     DATABASE_PATH = 'iptv_system.db'
     SECRET_KEY = 'iptv_secret_key_2024_secure'
