@@ -82,6 +82,19 @@ def after_request(response):
     """Aplicar headers anti-cache em todas as respostas"""
     return add_no_cache_headers(response)
 
+@app.route("/avisos/templates")
+def gerenciar_templates_page():
+    """Página para gerenciar os templates de avisos"""
+    try:
+        conn = db.get_connection()
+        templates_raw = conn.execute("SELECT * FROM templates_avisos ORDER BY nome ASC").fetchall()
+        conn.close()
+        templates = [dict(t) for t in templates_raw]
+        return render_template("gerenciar_templates.html", templates=templates)
+    except Exception as e:
+        flash(f"Erro ao carregar templates: {str(e)}", "error")
+        return redirect(url_for("avisos"))
+
 @app.route("/")
 def index():
     """Página inicial - Dashboard"""

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block nav_avisos %}active{% endblock %}
+{% block page_title %}Gerenciar Templates de Aviso{% endblock %}
+{% block page_icon %}<i class="bi bi-file-text-fill"></i>{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <div class="mb-3">
+            <a href="{{ url_for('avisos') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar para Avisos
+            </a>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Gerenciador de Templates</h5>
+            </div>
+            <div class="card-body">
+                <div class="card bg-light p-3 mb-4">
+                    <h6 id="form-title">Adicionar Novo Template</h6>
+                    <form id="formTemplate">
+                        <input type="hidden" id="templateNomeOriginal" value="">
+                        <div class="mb-3">
+                            <label for="templateNome" class="form-label">Nome do Template (sem espaços, ex: `aviso_manutencao`):</label>
+                            <input type="text" class="form-control" id="templateNome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="templateAssunto" class="form-label">Assunto (Opcional):</label>
+                            <input type="text" class="form-control" id="templateAssunto">
+                        </div>
+                        <div class="mb-3">
+                            <label for="templateCorpo" class="form-label">Corpo da Mensagem:</label>
+                            <textarea class="form-control" id="templateCorpo" rows="8" required></textarea>
+                            <div class="form-text">Variáveis: <code>{{nome_cliente}}</code>, <code>{{nome_lista}}</code>, <code>{{data_vencimento}}</code>, <code>{{dias_restantes}}</code></div>
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Salvar Template</button>
+                        <button type="button" class="btn btn-secondary" onclick="limparFormularioTemplate()">Limpar</button>
+                    </form>
+                </div>
+
+                <h6>Templates Salvos</h6>
+                <ul class="list-group" id="listaTemplatesExistentes">
+                    {% for t in templates %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ t.nome }}</strong>
+                            <p class="mb-0 text-muted small">{{ t.corpo | truncate(100) }}</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-info me-2" onclick="editarTemplate('{{ t.nome }}', '{{ t.assunto }}', '{{ t.corpo | tojson | safe }}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirTemplate('{{ t.nome }}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">Nenhum template salvo.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('formTemplate');
+    const formTitle = document.getElementById('form-title');
+    const nomeInput = document.getElementById('templateNome');
+    const assuntoInput = document.getElementById('templateAssunto');
+    const corpoInput = document.getElementById('templateCorpo');
+    const nomeOriginalInput = document.getElementById('templateNomeOriginal');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const nome = nomeInput.value.trim();
+        const nomeOriginal = nomeOriginalInput.value.trim();
+        const assunto = assuntoInput.value.trim();
+        const corpo = corpoInput.value.trim();
+
+        if (!nome || !corpo) {
+            alert('Nome e Corpo são obrigatórios.');
+            return;
+        }
+
+        const isUpdating = nomeOriginal && (nome === nomeOriginal);
+        const method = isUpdating ? 'PUT' : 'POST';
+        const url = isUpdating ? `/api/templates/${nome}` : '/api/templates';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, assunto, corpo })
+            });
+
+            if (response.ok) {
+                alert(`Template ${isUpdating ? 'atualizado' : 'salvo'} com sucesso!`);
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert('Erro: ' + (error.detail || error.error || 'Ocorreu um problema.'));
+            }
+        } catch (err) {
+            alert('Erro de conexão.');
+        }
+    });
+
+    function editarTemplate(nome, assunto, corpo) {
+        formTitle.textContent = 'Editando Template';
+        nomeInput.value = nome;
+        assuntoInput.value = assunto;
+        corpoInput.value = JSON.parse(corpo); // Decodifica o JSON para texto
+        nomeOriginalInput.value = nome;
+        window.scrollTo(0, 0);
+        nomeInput.focus();
+    }
+
+    async function excluirTemplate(nome) {
+        if (!confirm(`Tem certeza que deseja excluir o template '${nome}'?`)) return;
+
+        try {
+            const response = await fetch(`/api/templates/${nome}`, { method: 'DELETE' });
+            if (response.ok) {
+                alert('Template excluído com sucesso!');
+                location.reload();
+            } else {
+                alert('Erro ao excluir template.');
+            }
+        } catch (err) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    function limparFormularioTemplate() {
+        formTitle.textContent = 'Adicionar Novo Template';
+        form.reset();
+        nomeOriginalInput.value = '';
+    }
+</script>
+{% endblock %}
