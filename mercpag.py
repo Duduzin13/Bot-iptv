@@ -99,7 +99,7 @@ class MercadoPagoManager:
                 pagamento_db = db.buscar_pagamento(str(payment_id))
                 if pagamento_db and pagamento_db.get('status') != 'approved':
                     print(f"[WEBHOOK MP] Pagamento {payment_id} APROVADO.")
-                    db.atualizar_pagamento(str(payment_id), "approved")
+                    db.atualizar_status_pagamento(str(payment_id), "approved")
                     
                     telefone = pagamento_db['telefone']
                     contexto = pagamento_db['contexto']
@@ -115,7 +115,7 @@ class MercadoPagoManager:
                         print(f"[WEBHOOK MP] Iniciando fluxo de RENOVAÇÃO para {telefone}")
                         gemini_bot.processar_pagamento_renovacao(telefone, dados)
                     
-                    db.salvar_conversa(telefone, 'inicial', 'menu', '{}') # Reseta a conversa
+                    db.set_conversa(telefone, 'inicial', 'menu', '{}') # Reseta a conversa
                     return True
             return False
         except Exception as e:
