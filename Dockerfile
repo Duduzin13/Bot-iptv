@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 6. Exponha a porta que seu Gunicorn/Flask irá usar (Render usa 10000 por padrão)
-EXPOSE 10000
+EXPOSE 5000
 
 # 7. O comando para iniciar sua aplicação (substitua 'app:app' se necessário)
 # O bind 0.0.0.0:10000 é importante para o Render
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:10000"]
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:5000"]
