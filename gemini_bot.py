@@ -448,7 +448,7 @@ class GeminiBot:
                 return """❓ **Resposta inválida**\n\n**1️⃣** - Sim, gerar PIX\n**2️⃣** - Não, cancelar pedido"""
 
         return("Erro no fluxo de compra."
-        + self.menu_erro("Não entendi sua mensagem.", telefone))
+        + self.menu_erro())
 
     def gerar_pix_compra(self, telefone: str, dados_compra: Dict) -> Optional[str]:
         """
@@ -606,7 +606,8 @@ class GeminiBot:
             else:
                 return """❓ **Resposta inválida**\n\n**1️⃣** - Sim, gerar PIX\n**2️⃣** - Não, cancelar"""
 
-        return "Erro no fluxo de renovação."
+        return("Erro no fluxo de renovação."
+        + self.menu_erro())
 
     def gerar_pix_renovacao(self, telefone: str, dados_renovacao: Dict) -> Optional[str]:
         """
