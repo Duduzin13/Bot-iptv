@@ -224,7 +224,7 @@ class GeminiBot:
         """
         Resposta personalizada para saudações
         """
-        return """👋 **Olá! Tudo bem?** Sou **Alex**, seu assistente de vendas IPTV. \n\n📺 **Oferta Especial:**\n• Canais **Full HD, HD, SD** e **H.265**\n• **VOD**, conteúdos **Adulto** e **LGBT** • **Até 10 conexões simultâneas**\n\n💰 **Apenas R$ 30,00/mês** - Planos de 1 a 12 meses\n\n**Como posso ajudá-lo hoje?**\n\n**1️⃣** - Criar nova lista IPTV\n**2️⃣** - Renovar lista existente  \n**3️⃣** - Consultar meus dados"""
+        return """👋 **Olá! Tudo bem?** Sou **Ozzy**, seu assistente de vendas IPTV. \n\n📺 **Oferta Especial:**\n• Canais **Full HD, HD, SD** e **H.265**\n• **VOD**, conteúdos **Adulto** e **LGBT** • **Até 10 conexões simultâneas**\n\n💰 **Apenas R$ 30,00/mês** - Planos de 1 a 12 meses\n\n**Como posso ajudá-lo hoje?**\n\n**1️⃣** - Criar nova lista IPTV\n**2️⃣** - Renovar lista existente  \n**3️⃣** - Consultar meus dados"""
 
     def menu_erro(self, mensagem_erro: str, telefone: str) -> str:
         """
@@ -447,7 +447,8 @@ class GeminiBot:
             else:
                 return """❓ **Resposta inválida**\n\n**1️⃣** - Sim, gerar PIX\n**2️⃣** - Não, cancelar pedido"""
 
-        return "Erro no fluxo de compra."
+        return("Erro no fluxo de compra."
+        + self.menu_erro("Não entendi sua mensagem.", telefone))
 
     def gerar_pix_compra(self, telefone: str, dados_compra: Dict) -> Optional[str]:
         """
