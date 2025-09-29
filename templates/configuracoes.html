@@ -1,0 +1,321 @@
+<!-- templates/configuracoes.html -->
+{% extends "base.html" %}
+{% block nav_config %}active{% endblock %}
+{% block page_title %}Configurações do Sistema{% endblock %}
+{% block page_icon %}<i class="bi bi-gear"></i>{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="bi bi-gear-fill"></i> Configurações Gerais
+                </h5>
+                <small class="text-muted">Gerencie as configurações principais do sistema</small>
+            </div>
+            
+            <div class="card-body">
+                <!-- Configuração do Link -->
+                <div class="section mb-4">
+                    <h6 class="text-secondary mb-3">
+                        <i class="bi bi-link-45deg"></i> Link de Acesso IPTV
+                    </h6>
+                    <form method="POST" action="/atualizar-link">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="link_acesso" class="form-label">
+                                    URL de Acesso dos Clientes
+                                </label>
+                                <input type="url" class="form-control" id="link_acesso" name="link_acesso" 
+                                       value="{{ config.link_acesso }}" required>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Este link será enviado aos clientes para acessar suas listas
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end mb-3">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-check-circle"></i> Atualizar Link
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Configuração de Preços -->
+                <div class="section mb-4">
+                    <h6 class="text-secondary mb-3">
+                        <i class="bi bi-currency-dollar"></i> Configuração de Preços
+                    </h6>
+                    <form method="POST" action="/atualizar-precos">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="preco_mes" class="form-label">
+                                    <i class="bi bi-calendar-month text-success"></i> 
+                                    Preço por Mês (R$)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" step="0.01" class="form-control" id="preco_mes" 
+                                           name="preco_mes" value="{{ config.preco_mes }}" min="0">
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Valor cobrado por mês de acesso
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="preco_conexao" class="form-label">
+                                    <i class="bi bi-diagram-3 text-warning"></i> 
+                                    Preço por Conexão Extra (R$)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" step="0.01" class="form-control" id="preco_conexao" 
+                                           name="preco_conexao" value="{{ config.preco_conexao }}" min="0">
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Valor adicional por conexão extra
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Salvar Preços
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Informações do Sistema -->
+                <div class="section">
+                    <h6 class="text-secondary mb-3">
+                        <i class="bi bi-info-circle"></i> Informações do Sistema
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary">
+                                        <i class="bi bi-server"></i> Serviços
+                                    </h6>
+                                    <div class="info-item mb-2">
+                                        <strong>Dashboard:</strong>
+                                        <span class="badge bg-success ms-2">
+                                            <i class="bi bi-check-circle"></i> Online
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">http://localhost:5000</small>
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>WhatsApp Bot:</strong>
+                                        <span class="badge bg-primary ms-2">
+                                            <i class="bi bi-whatsapp"></i> Ativo
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">http://localhost:5001/webhook</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title text-success">
+                                        <i class="bi bi-currency-dollar"></i> Preços Atuais
+                                    </h6>
+                                    <div class="info-item mb-2">
+                                        <strong>Mensal:</strong>
+                                        <span class="h6 text-success ms-2 mb-0">R$ {{ config.preco_mes }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Conexão Extra:</strong>
+                                        <span class="h6 text-warning ms-2 mb-0">R$ {{ config.preco_conexao }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Teste de Configurações -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0 text-secondary">
+                    <i class="bi bi-tools"></i> Teste de Configurações
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Link de Acesso</h6>
+                        <p class="text-muted small mb-3">
+                            Verifique se o link está acessível e funcionando corretamente.
+                        </p>
+                        <a href="{{ config.link_acesso }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-box-arrow-up-right"></i> Testar Link
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">Simulação de Preço</h6>
+                        <p class="text-muted small mb-3">
+                            Calcule o valor para diferentes configurações.
+                        </p>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="calcularPreco()">
+                            <i class="bi bi-calculator"></i> Calcular Preço
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Backup -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-shield-exclamation"></i> Backup e Segurança
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Importante:</strong> Faça backup regular das configurações e banco de dados.
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Configurações Salvas</h6>
+                        <ul class="small text-muted">
+                            <li>Link de acesso IPTV</li>
+                            <li>Preços do sistema</li>
+                            <li>Configurações do bot</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Banco de Dados</h6>
+                        <ul class="small text-muted">
+                            <li>Dados dos clientes</li>
+                            <li>Histórico de pagamentos</li>
+                            <li>Logs do sistema</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Calculadora -->
+<div class="modal fade" id="calculadoraModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-calculator"></i> Calculadora de Preços
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Meses:</label>
+                    <input type="number" id="calcMeses" class="form-control" value="1" min="1" max="12">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Conexões:</label>
+                    <input type="number" id="calcConexoes" class="form-control" value="1" min="1" max="10">
+                </div>
+                <div class="alert alert-info">
+                    <h5 class="mb-0">Total: R$ <span id="totalCalculado">0.00</span></h5>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcularPreco() {
+    const modal = new bootstrap.Modal(document.getElementById('calculadoraModal'));
+    modal.show();
+    
+    // Atualizar cálculo quando mudar valores
+    document.getElementById('calcMeses').addEventListener('input', atualizarCalculo);
+    document.getElementById('calcConexoes').addEventListener('input', atualizarCalculo);
+    
+    atualizarCalculo();
+}
+
+function atualizarCalculo() {
+    const meses = parseInt(document.getElementById('calcMeses').value) || 1;
+    const conexoes = parseInt(document.getElementById('calcConexoes').value) || 1;
+    const precoMes = parseFloat('{{ config.preco_mes }}') || 30;
+    const precoConexao = parseFloat('{{ config.preco_conexao }}') || 30;
+    
+    const total = (precoMes * meses) + (precoConexao * (conexoes - 1) * meses);
+    document.getElementById('totalCalculado').textContent = total.toFixed(2);
+}
+
+// Validação dos formulários
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const inputs = form.querySelectorAll('input[required]');
+        let valid = true;
+        
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                input.classList.add('is-invalid');
+                valid = false;
+            } else {
+                input.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!valid) {
+            e.preventDefault();
+            alert('Por favor, preencha todos os campos obrigatórios.');
+        }
+    });
+});
+
+// Feedback visual para links
+document.getElementById('link_acesso').addEventListener('blur', function() {
+    const url = this.value;
+    if (url && !url.startsWith('http')) {
+        this.classList.add('is-invalid');
+        this.nextElementSibling.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> URL deve começar com http:// ou https://';
+    } else {
+        this.classList.remove('is-invalid');
+        this.nextElementSibling.innerHTML = '<i class="bi bi-info-circle"></i> Este link será enviado aos clientes para acessar suas listas';
+    }
+});
+
+// Validação de números nos campos de preço
+document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (value < 0) {
+            this.value = 0;
+        }
+        if (value > 9999) {
+            this.value = 9999;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block nav_dashboard %}active{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_icon %}<i class="bi bi-speedometer2"></i>{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Listas Ativas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.listas_ativas or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-tv h2 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Vendas do Mês</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">R$ {{ "%.2f"|format(stats.vendas_mes or 0) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-cash-stack h2 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Expirando (7 dias)</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.expirando_7_dias or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-exclamation-triangle h2 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card {% if stats.bitpanel_online %}border-left-info{% else %}border-left-danger{% endif %} shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold {% if stats.bitpanel_online %}text-info{% else %}text-danger{% endif %} text-uppercase mb-1">Status do Painel</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if stats.bitpanel_online %}
+                                <span class="text-success">Online</span>
+                            {% else %}
+                                <span class="text-danger">Offline</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-server h2 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0 text-primary"><i class="bi bi-lightning-charge"></i> Ações Rápidas</h6>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('adicionar_cliente') }}" class="btn btn-primary mb-2 w-100">
+                    <i class="bi bi-person-plus"></i> Adicionar Cliente
+                </a>
+                <a href="{{ url_for('avisos') }}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-megaphone"></i> Enviar Avisos
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0 text-secondary"><i class="bi bi-info-circle"></i> Informações do Sistema</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Link de Acesso:
+                    <span class="badge bg-secondary">{{ stats.link_atual or 'Não configurado' }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Preço/Mês:
+                    <span class="badge bg-success">R$ {{ stats.preco_mes or '30.00' }}</span>
+                </li>
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Preço/Conexão Extra:
+                    <span class="badge bg-warning">R$ {{ stats.preco_conexao or '30.00' }}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

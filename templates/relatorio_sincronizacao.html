@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block nav_clientes %}active{% endblock %}
+{% block page_title %}Relatório de Sincronização{% endblock %}
+{% block page_icon %}<i class="bi bi-graph-up-arrow"></i>{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <div class="mb-3">
+            <a href="{{ url_for('listar_clientes') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar aos Clientes
+            </a>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h2 class="text-warning">{{ stats.nunca_sincronizados }}</h2>
+                        <h6 class="text-muted">Nunca Sincronizados</h6>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center">
+                        <h2 class="text-success">{{ stats.total_com_sync }}</h2>
+                        <h6 class="text-muted">Já Sincronizados</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if nunca_sincronizados %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Clientes Nunca Sincronizados
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuário IPTV</th>
+                                <th>Telefone</th>
+                                <th>Criado em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in nunca_sincronizados %}
+                            <tr>
+                                <td><code>{{ cliente.usuario_iptv }}</code></td>
+                                <td>{{ cliente.telefone }}</td>
+                                <td>{{ cliente.created_at[:10] if cliente.created_at else 'Não informado' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('sincronizar_cliente', usuario_iptv=cliente.usuario_iptv) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-info">
+                                            <i class="bi bi-arrow-repeat"></i> Sincronizar
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('gerenciar_cliente', usuario_iptv=cliente.usuario_iptv) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-gear"></i> Gerenciar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if ultimas_sync %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-check-circle"></i> Últimas Sincronizações (20 mais recentes)
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuário IPTV</th>
+                                <th>Telefone</th>
+                                <th>Última Sincronização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cliente in ultimas_sync %}
+                            <tr>
+                                <td><code>{{ cliente.usuario_iptv }}</code></td>
+                                <td>{{ cliente.telefone }}</td>
+                                <td>
+                                    {% if cliente.ultima_sincronizacao %}
+                                        {% set sync_date = cliente.ultima_sincronizacao[:16].replace('T', ' ') %}
+                                        {{ sync_date }}
+                                        <span class="badge bg-info ms-2">Sincronizado</span>
+                                    {% else %}
+                                        Nunca
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('sincronizar_cliente', usuario_iptv=cliente.usuario_iptv) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-arrow-repeat"></i> Re-sincronizar
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('gerenciar_cliente', usuario_iptv=cliente.usuario_iptv) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-gear"></i> Gerenciar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightning"></i> Ações em Massa
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Sincronização Completa</h6>
+                        <p class="text-muted small">Sincroniza todos os clientes com o BitPanel. Pode demorar alguns minutos.</p>
+                        <form method="POST" action="{{ url_for('sincronizar_todos_clientes') }}">
+                            <button type="submit" class="btn btn-primary" onclick="return confirm('Tem certeza? Esta operação pode demorar vários minutos.')">
+                                <i class="bi bi-cloud-arrow-down"></i> Sincronizar Todos
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Relatórios</h6>
+                        <p class="text-muted small">Gere relatórios detalhados sobre o status dos clientes.</p>
+                        <button type="button" class="btn btn-outline-secondary" onclick="gerarRelatorioCSV()">
+                            <i class="bi bi-file-earmark-excel"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// *** CORREÇÃO: REMOVIDO MOMENT.JS - USANDO JAVASCRIPT NATIVO ***
+
+function formatarDataHora(dataString) {
+    /**
+     * Formata uma string de data/hora para um formato legível
+     * Substitui a funcionalidade do moment.js
+     */
+    try {
+        const data = new Date(dataString);
+        if (isNaN(data.getTime())) {
+            return 'Data inválida';
+        }
+        
+        const agora = new Date();
+        const diffMs = agora - data;
+        const diffMinutos = Math.floor(diffMs / (1000 * 60));
+        const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffMinutos < 1) {
+            return 'Agora mesmo';
+        } else if (diffMinutos < 60) {
+            return `${diffMinutos} minuto${diffMinutos > 1 ? 's' : ''} atrás`;
+        } else if (diffHoras < 24) {
+            return `${diffHoras} hora${diffHoras > 1 ? 's' : ''} atrás`;
+        } else if (diffDias < 7) {
+            return `${diffDias} dia${diffDias > 1 ? 's' : ''} atrás`;
+        } else {
+            return data.toLocaleDateString('pt-BR') + ' às ' + data.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+        }
+    } catch (error) {
+        console.error('Erro ao formatar data:', error);
+        return 'Data inválida';
+    }
+}
+
+function gerarRelatorioCSV() {
+    // Criar dados CSV manualmente a partir dos elementos da tabela
+    let csvData = [
+        ['Usuario IPTV', 'Telefone', 'Ultima Sincronizacao', 'Status']
+    ];
+
+    // Obter dados das tabelas diretamente do HTML
+    const tabelaNunca = document.querySelector('.bg-warning');
+    if (tabelaNunca) {
+        const cardNunca = tabelaNunca.closest('.card');
+        if (cardNunca) {
+            const tbody = cardNunca.querySelector('tbody');
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        const usuario = cells[0].textContent.trim();
+                        const telefone = cells[1].textContent.trim();
+                        const criado = cells[2].textContent.trim();
+                        csvData.push([usuario, telefone, 'Nunca', 'Pendente']);
+                    }
+                });
+            }
+        }
+    }
+
+    const tabelaSync = document.querySelector('.bg-success');
+    if (tabelaSync) {
+        const cardSync = tabelaSync.closest('.card');
+        if (cardSync) {
+            const tbody = cardSync.querySelector('tbody');
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        const usuario = cells[0].textContent.trim();
+                        const telefone = cells[1].textContent.trim();
+                        const ultimaSync = cells[2].textContent.trim().split('Sincronizado')[0].trim();
+                        csvData.push([usuario, telefone, ultimaSync, 'Sincronizado']);
+                    }
+                });
+            }
+        }
+    }
+    
+    // Converter para CSV
+    const csvContent = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    // Criar e baixar o arquivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    
+    // Nome do arquivo com data atual
+    const hoje = new Date();
+    const dataFormatada = hoje.getFullYear() + '-' + 
+                         String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
+                         String(hoje.getDate()).padStart(2, '0');
+    
+    link.setAttribute('download', `sincronizacao_${dataFormatada}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Feedback visual para botões de sincronização
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[action*="sincronizar"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sincronizando...';
+                
+                // Reabilitar após 10 segundos se não houver redirecionamento
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }, 10000);
+            }
+        });
+    });
+    
+    // Atualizar timestamps relativos a cada minuto
+    setInterval(function() {
+        // Atualizar qualquer timestamp relativo se necessário
+        // (implementação futura se necessário)
+    }, 60000);
+});
+
+// *** CORREÇÃO: FUNÇÃO PARA ATUALIZAÇÃO AUTOMÁTICA DO DASHBOARD ***
+function atualizarDashboard() {
+    // Força uma atualização das estatísticas do dashboard
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Dashboard atualizado:', data);
+            // Opcional: Atualizar elementos específicos da página
+        })
+        .catch(error => {
+            console.error('Erro ao atualizar dashboard:', error);
+        });
+}
+
+// Atualizar dashboard após sincronizações
+document.querySelectorAll('form[action*="sincronizar"]').forEach(form => {
+    form.addEventListener('submit', function() {
+        // Atualizar dashboard após 3 segundos (tempo para a sincronização completar)
+        setTimeout(atualizarDashboard, 3000);
+    });
+});
+</script>
+{% endblock %}
+

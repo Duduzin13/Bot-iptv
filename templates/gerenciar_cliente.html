@@ -1,0 +1,335 @@
+<!-- templates/gerenciar_cliente.html -->
+{% extends "base.html" %}
+{% block nav_clientes %}active{% endblock %}
+{% block page_title %}Gerenciar Cliente - {{ cliente.usuario_iptv }}{% endblock %}
+{% block page_icon %}<i class="bi bi-person-gear"></i>{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <!-- Botão Voltar -->
+        <div class="mb-3">
+            <a href="{{ url_for('listar_clientes') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar aos Clientes
+            </a>
+        </div>
+
+        <!-- Informações do Cliente -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 text-primary">
+                            <i class="bi bi-person-circle"></i> {{ cliente.usuario_iptv }}
+                        </h5>
+                        <small class="text-muted">Informações do Cliente</small>
+                    </div>
+                    <div>
+                        {% if cliente.status == 'ativo' %}
+                            <span class="badge bg-success fs-6">
+                                <i class="bi bi-check-circle"></i> Ativo
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6">
+                                <i class="bi bi-x-circle"></i> Inativo
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-secondary">Dados Básicos</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Telefone:</strong></td>
+                                <td>{{ cliente.telefone }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nome:</strong></td>
+                                <td>{{ cliente.nome or 'Não informado' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Usuário IPTV:</strong></td>
+                                <td><code>{{ cliente.usuario_iptv }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Conexões:</strong></td>
+                                <td>{{ cliente.conexoes or 1 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                   <div class="col-md-6">
+                        <h6 class="text-secondary">Datas e Status</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Criado em:</strong></td>
+                                <td>{{ cliente.created_at[:10] if cliente.created_at else 'Não informado' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data Criação Lista:</strong></td>
+                                <td>{{ cliente.data_criacao[:10] if cliente.data_criacao else 'Não informado' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data Expiração:</strong></td>
+                                <td>
+                                    {{ cliente.data_expiracao[:10] if cliente.data_expiracao else 'Não informado' }}
+                                    
+                                    {% if cliente.data_expiracao_obj %}
+                                        {% set dias_restantes = (cliente.data_expiracao_obj - now()).days %}
+                                        {% if dias_restantes < 0 %}
+                                            <span class="badge bg-danger ms-2">Expirado</span>
+                                        {% elif dias_restantes < 7 %}
+                                            <span class="badge bg-warning ms-2">{{ dias_restantes }} dias</span>
+                                        {% else %}
+                                            <span class="badge bg-success ms-2">{{ dias_restantes }} dias</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Última Sincronização:</strong></td>
+                                <td>
+                                    {{ cliente.ultima_sincronizacao[:19] if cliente.ultima_sincronizacao else 'Nunca sincronizado' }}
+                                    {% if not cliente.ultima_sincronizacao %}
+                                        <span class="badge bg-warning ms-2">Pendente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ações do Cliente -->
+        <div class="row">
+            <!-- Sincronização -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-arrow-repeat"></i> Sincronização
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Sincronizar dados com o BitPanel para obter informações atualizadas.</p>
+                        <form method="POST" action="{{ url_for('sincronizar_cliente', usuario_iptv=cliente.usuario_iptv) }}">
+                            <button type="submit" class="btn btn-info w-100" id="btnSincronizar">
+                                <i class="bi bi-cloud-download"></i> Sincronizar Agora
+                            </button>
+                        </form>
+                        <small class="text-muted mt-2 d-block">
+                            Última sync: {{ cliente.ultima_sincronizacao[:16] if cliente.ultima_sincronizacao else 'Nunca' }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edição LOCAL -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">
+                            <i class="bi bi-pencil-square"></i> Editar no Sistema Local
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('editar_cliente_route', usuario_iptv=cliente.usuario_iptv) }}">
+                            <div class="mb-3">
+                                <label class="form-label small">Nome:</label>
+                                <input type="text" class="form-control form-control-sm" name="nome" 
+                                       value="{{ cliente.nome or '' }}" placeholder="Nome do cliente">
+                                <small class="text-muted">Apenas no banco local</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label small">Conexões:</label>
+                                    <input type="number" class="form-control form-control-sm" name="conexoes" 
+                                           min="1" max="10" placeholder="{{ cliente.conexoes or 1 }}">
+                                    <small class="text-muted">Local apenas</small>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Adicionar meses:</label>
+                                    <input type="number" class="form-control form-control-sm" name="meses" 
+                                           min="1" max="12" placeholder="0">
+                                    <small class="text-muted">Estende validade</small>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 mt-3">
+                                <i class="bi bi-save"></i> Salvar no Sistema Local
+                            </button>
+                        </form>
+                        <small class="text-info mt-2 d-block">
+                            <i class="bi bi-info-circle"></i> As alterações afetam apenas o banco local, não o BitPanel
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exclusão LOCAL -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-trash"></i> Exclusão Local
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Excluir cliente apenas do sistema local (mantém no BitPanel).</p>
+                        <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#modalExcluir">
+                            <i class="bi bi-exclamation-triangle"></i> Excluir do Sistema
+                        </button>
+                        <small class="text-info mt-2 d-block">
+                            <i class="bi bi-info-circle"></i> A lista permanecerá ativa no BitPanel
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Histórico de Pagamentos -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0 text-secondary">
+                    <i class="bi bi-credit-card"></i> Histórico de Pagamentos
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Payment ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Aqui você pode adicionar dados dos pagamentos do cliente -->
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="bi bi-info-circle"></i> 
+                                    Histórico de pagamentos será implementado em breve
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão LOCAL -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Confirmar Exclusão Local
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <h6>Exclusão apenas do sistema local</h6>
+                    <p class="mb-0">O cliente <strong>{{ cliente.usuario_iptv }}</strong> será:</p>
+                    <ul class="mt-2 mb-0">
+                        <li>Removido do banco de dados local</li>
+                        <li>Histórico de pagamentos removido</li>
+                        <li><strong>A lista permanecerá ATIVA no BitPanel</strong></li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Para excluir também do BitPanel, faça isso manualmente no painel de administração.
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="confirmarExclusao" required>
+                    <label class="form-check-label" for="confirmarExclusao">
+                        Entendo que isso remove apenas do meu sistema local
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" action="{{ url_for('excluir_cliente_route', usuario_iptv=cliente.usuario_iptv) }}" class="d-inline">
+                    <button type="submit" class="btn btn-warning" id="btnConfirmarExclusao" disabled>
+                        <i class="bi bi-trash"></i> Sim, Excluir Apenas do Sistema Local
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Controle do checkbox de confirmação
+document.getElementById('confirmarExclusao').addEventListener('change', function() {
+    document.getElementById('btnConfirmarExclusao').disabled = !this.checked;
+});
+
+// Feedback visual nos botões
+document.getElementById('btnSincronizar').addEventListener('click', function() {
+    this.disabled = true;
+    this.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Sincronizando...';
+    
+    // Reabilitar após 10 segundos
+    setTimeout(() => {
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-cloud-download"></i> Sincronizar Agora';
+    }, 10000);
+});
+
+// Auto-refresh dos dados a cada 30 segundos
+setInterval(function() {
+    fetch(`/api/cliente/{{ cliente.usuario_iptv }}/info`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && !data.error) {
+                // Atualizar informações na tela se necessário
+                console.log('Dados atualizados:', data);
+            }
+        })
+        .catch(error => console.error('Erro ao atualizar dados:', error));
+}, 30000);
+
+// Animação de loading para formulários
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function() {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn && !submitBtn.disabled) {
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
+            
+            // Reabilitar após 8 segundos se não houver redirecionamento
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }, 8000);
+        }
+    });
+});
+
+// CSS adicional para animação
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

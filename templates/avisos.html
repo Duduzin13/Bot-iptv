@@ -1,0 +1,370 @@
+<!-- templates/avisos.html -->
+{% extends "base.html" %}
+{% block nav_avisos %}active{% endblock %}
+{% block page_title %}Enviar Avisos{% endblock %}
+{% block page_icon %}<i class="bi bi-megaphone"></i>{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="bi bi-megaphone-fill"></i> Enviar Aviso em Massa
+                </h5>
+                <small class="text-muted">Envie mensagens via WhatsApp para seus clientes</small>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="/enviar-aviso" id="formAviso">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="tipo" class="form-label">
+                                <i class="bi bi-people text-primary"></i> 
+                                Público-alvo <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="tipo" name="tipo" required>
+                                <option value="">Selecione o público</option>
+                                <option value="ativos">
+                                    <i class="bi bi-check-circle"></i> Apenas clientes ATIVOS
+                                </option>
+                                <option value="expirando">
+                                    <i class="bi bi-exclamation-triangle"></i> Apenas clientes EXPIRANDO (7 dias)
+                                </option>
+                                <option value="todos">
+                                    <i class="bi bi-broadcast"></i> TODOS os clientes
+                                </option>
+                            </select>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> 
+                                Escolha cuidadosamente o público para não incomodar
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">
+                                <i class="bi bi-bar-chart text-info"></i> 
+                                Estimativa de Envios
+                            </label>
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <div id="estimativaEnvios" class="text-center">
+                                        <span class="text-muted">Selecione um público</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-clock"></i> 
+                                Estimativa baseada nos dados atuais
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="mensagem" class="form-label">
+                            <i class="bi bi-chat-text text-primary"></i> 
+                            Mensagem <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="mensagem" name="mensagem" rows="8" 
+                                  placeholder="Digite sua mensagem aqui..." required maxlength="1000"></textarea>
+                        <div class="d-flex justify-content-between">
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> 
+                                Use mensagens claras e diretas. Evite spam.
+                            </div>
+                            <small class="text-muted">
+                                <span id="contadorCaracteres">0</span>/1000 caracteres
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Preview da mensagem -->
+                    <div class="mb-4" id="previewContainer" style="display: none;">
+                        <label class="form-label">
+                            <i class="bi bi-eye text-success"></i> 
+                            Preview da Mensagem
+                        </label>
+                        <div class="card">
+                            <div class="card-body bg-light">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-success rounded-circle me-2 p-2">
+                                        <i class="bi bi-robot text-white"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="bg-white rounded p-3 shadow-sm">
+                                            <div id="previewMensagem"></div>
+                                        </div>
+                                        <small class="text-muted">Sistema IPTV</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" onclick="limparFormulario()">
+                            <i class="bi bi-arrow-clockwise"></i> Limpar
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="btnEnviar">
+                            <i class="bi bi-send"></i> Enviar Aviso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Card de Templates Prontos -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0 text-secondary">
+                    <i class="bi bi-file-text"></i> Templates Prontos
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Clique em um template para usar como base:</p>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" 
+                                onclick="usarTemplate('manutencao')">
+                            <i class="bi bi-tools"></i> Manutenção Programada
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-warning btn-sm w-100" 
+                                onclick="usarTemplate('vencimento')">
+                            <i class="bi bi-exclamation-triangle"></i> Aviso de Vencimento
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-success btn-sm w-100" 
+                                onclick="usarTemplate('promocao')">
+                            <i class="bi bi-tag"></i> Promoção Especial
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-info btn-sm w-100" 
+                                onclick="usarTemplate('novidade')">
+                            <i class="bi bi-star"></i> Nova Funcionalidade
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de Dicas -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightbulb"></i> Dicas para Mensagens Eficazes
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-success">Boas Práticas</h6>
+                        <ul class="small">
+                            <li>Seja claro e objetivo</li>
+                            <li>Use linguagem amigável</li>
+                            <li>Inclua informações relevantes</li>
+                            <li>Evite mensagens muito longas</li>
+                            <li>Teste antes de enviar em massa</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-danger">Evite</h6>
+                        <ul class="small">
+                            <li>Mensagens muito frequentes</li>
+                            <li>Linguagem agressiva</li>
+                            <li>Informações falsas</li>
+                            <li>Pressão excessiva de vendas</li>
+                            <li>Horários inadequados</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Templates de mensagens
+const templates = {
+    manutencao: `🔧 MANUTENÇÃO PROGRAMADA
+
+Prezados clientes,
+
+Informamos que haverá uma manutenção em nossos servidores:
+
+📅 Data: [DATA]
+⏰ Horário: [HORÁRIO]
+⏱️ Duração estimada: [TEMPO]
+
+Durante este período, o serviço pode ficar instável.
+
+Agradecemos a compreensão!
+
+Sistema IPTV`,
+
+    vencimento: `⚠️ AVISO DE VENCIMENTO
+
+Olá!
+
+Sua lista IPTV está próxima do vencimento:
+
+📅 Vence em: [DIAS] dias
+💰 Valor para renovar: R$ [VALOR]
+
+Para renovar, envie "renovar" e siga as instruções.
+
+Não perca o acesso!
+
+Sistema IPTV`,
+
+    promocao: `🎉 PROMOÇÃO ESPECIAL!
+
+Aproveite nossa oferta limitada:
+
+💰 [DESCONTO]% de desconto
+⏰ Válida até: [DATA]
+🎯 Para: [PÚBLICO]
+
+Para aproveitar, envie "comprar" agora mesmo!
+
+Não perca essa oportunidade!
+
+Sistema IPTV`,
+
+    novidade: `🆕 NOVIDADE NO SISTEMA!
+
+Temos novidades para você:
+
+✨ [NOVA_FUNCIONALIDADE]
+🚀 [MELHORIA]
+📺 [NOVO_CONTEUDO]
+
+Aproveite as novidades e tenha a melhor experiência!
+
+Sistema IPTV`
+};
+
+// Contador de caracteres
+document.getElementById('mensagem').addEventListener('input', function() {
+    const count = this.value.length;
+    document.getElementById('contadorCaracteres').textContent = count;
+    
+    // Preview da mensagem
+    if (count > 0) {
+        document.getElementById('previewContainer').style.display = 'block';
+        document.getElementById('previewMensagem').textContent = this.value;
+    } else {
+        document.getElementById('previewContainer').style.display = 'none';
+    }
+});
+
+// Estimativa de envios (você pode conectar com dados reais)
+document.getElementById('tipo').addEventListener('change', async function() {
+    const tipo = this.value;
+    const estimativaDiv = document.getElementById('estimativaEnvios');
+    
+    if (!tipo) {
+        estimativaDiv.innerHTML = '<span class="text-muted">Selecione um público</span>';
+        return;
+    }
+    
+    // Mostra um feedback de "carregando"
+    estimativaDiv.innerHTML = '<span class="text-muted">Calculando...</span>';
+
+    try {
+        // Faz a chamada para a nova API no backend
+        const response = await fetch(`/api/contar-clientes/${tipo}`);
+        
+        if (!response.ok) {
+            throw new Error('Erro ao buscar dados');
+        }
+        
+        const data = await response.json();
+        const count = data.count;
+        let texto = '';
+
+        if (tipo === 'ativos') {
+            texto = `${count} cliente(s) ativo(s)`;
+        } else if (tipo === 'expirando') {
+            texto = `${count} cliente(s) expirando`;
+        } else if (tipo === 'todos') {
+            texto = `${count} telefone(s) no total`;
+        }
+        
+        estimativaDiv.innerHTML = `<strong class="text-primary">${texto}</strong>`;
+
+    } catch (error) {
+        console.error("Erro ao obter estimativa:", error);
+        estimativaDiv.innerHTML = '<span class="text-danger">Erro ao calcular</span>';
+    }
+});
+
+// Usar template
+function usarTemplate(tipo) {
+    if (templates[tipo]) {
+        document.getElementById('mensagem').value = templates[tipo];
+        document.getElementById('mensagem').dispatchEvent(new Event('input'));
+        
+        // Scroll para a área da mensagem
+        document.getElementById('mensagem').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('mensagem').focus();
+    }
+}
+
+// Limpar formulário
+function limparFormulario() {
+    document.getElementById('formAviso').reset();
+    document.getElementById('contadorCaracteres').textContent = '0';
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('estimativaEnvios').innerHTML = '<span class="text-muted">Selecione um público</span>';
+}
+
+// Validação do formulário
+document.getElementById('formAviso').addEventListener('submit', function(e) {
+    const tipo = document.getElementById('tipo').value;
+    const mensagem = document.getElementById('mensagem').value.trim();
+    
+    if (!tipo) {
+        alert('Por favor, selecione o público-alvo!');
+        e.preventDefault();
+        return;
+    }
+    
+    if (!mensagem) {
+        alert('Por favor, digite a mensagem!');
+        e.preventDefault();
+        return;
+    }
+    
+    if (mensagem.length < 10) {
+        alert('A mensagem deve ter pelo menos 10 caracteres!');
+        e.preventDefault();
+        return;
+    }
+    
+    // Confirmação para envio em massa
+    const confirmacao = confirm(`Tem certeza que deseja enviar esta mensagem para ${tipo}?\n\nEsta ação não pode ser desfeita.`);
+    if (!confirmacao) {
+        e.preventDefault();
+        return;
+    }
+    
+    // Desabilitar botão para evitar duplo clique
+    const btnEnviar = document.getElementById('btnEnviar');
+    btnEnviar.disabled = true;
+    btnEnviar.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+    
+    // Reabilitar após 10 segundos (caso dê erro)
+    setTimeout(() => {
+        btnEnviar.disabled = false;
+        btnEnviar.innerHTML = '<i class="bi bi-send"></i> Enviar Aviso';
+    }, 10000);
+});
+</script>
+{% endblock %}
