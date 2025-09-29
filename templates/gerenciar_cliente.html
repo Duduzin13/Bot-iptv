@@ -302,19 +302,21 @@ if (btnSincronizar) {
 }
 
 // Auto-refresh dos dados a cada 30 segundos (apenas se tiver usuario_iptv)
-{% if cliente.usuario_iptv %}
-setInterval(function() {
-    fetch(`/api/cliente/{{ cliente.id }}/info`)
-        .then(response => response.json())
-        .then(data => {
-            if (data && !data.error) {
-                // Atualizar informações na tela se necessário
-                console.log('Dados atualizados:', data);
-            }
-        })
-        .catch(error => console.error('Erro ao atualizar dados:', error));
-}, 30000);
-{% endif %}
+//const usuarioIPTV = {{ cliente.usuario_iptv|tojson }};
+
+if (usuarioIPTV) {
+    setInterval(function() {
+        fetch(`/api/cliente/{{ cliente.id }}/info`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && !data.error) {
+                    // Atualizar informações na tela se necessário
+                    console.log('Dados atualizados:', data);
+                }
+            })
+            .catch(error => console.error('Erro ao atualizar dados:', error));
+    }, 30000);
+}
 
 // Animação de loading para formulários
 document.querySelectorAll('form').forEach(form => {

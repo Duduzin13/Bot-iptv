@@ -17,30 +17,45 @@ class GeminiBot:
 
     def processar_mensagem(self, telefone: str, mensagem: str) -> Optional[str]:
         """
-        Ponto de entrada principal - VERSÃO OTIMIZADA
-        NÃO cria clientes no banco até completarem uma compra
+        Ponto de entrada principal que lida com novos clientes e clientes existentes.
         """
         try:
             print(f"[DEBUG] Processando: {telefone} | '{mensagem}'")
             mensagem = mensagem.strip()
 
-            # COMANDO UNIVERSAL DE CANCELAMENTO
+            # --- 1. COMANDO UNIVERSAL DE CANCELAMENTO ---
             if self.is_comando_cancelar(mensagem):
                 self.resetar_conversa(telefone)
                 return "❌ Atendimento cancelado. Se precisar de algo, é só chamar! 👋"
 
             conversa = db.get_conversa(telefone)
-            
-            # --- NOVA LÓGICA: SÓ BUSCA CLIENTE SE JÁ EXISTE ---
             cliente = db.buscar_cliente_por_telefone(telefone)
-            
-            # Se não tem cliente E não tem conversa = primeira mensagem
-            if not cliente and not conversa:
-                # NÃO CRIAR CLIENTE AINDA - apenas iniciar conversa temporária
-                db.set_conversa(telefone, "inicial", "primeira_vez", json.dumps({"primeira_mensagem": True}))
-                return self.resposta_saudacao()
-            
-            # Se tem conversa em andamento
+
+            # --- 2. LÓGICA PARA NOVOS CLIENTES (CÓDIGO MESCLADO) ---
+            # Se não há registro do cliente, inicia o fluxo de cadastro.
+            if not cliente:
+                # Se a conversa ainda não foi iniciada ou não está no contexto de 'novo_cliente'
+                if not conversa or conversa.get("contexto") != "novo_cliente":
+                    db.set_conversa(telefone, "novo_cliente", "aguardando_nome", "{}")
+                    return "👋 Olá! Sou o assistente virtual. Para começarmos, qual é o seu nome?"
+                else:
+                    # Se o bot já perguntou o nome e está aguardando a resposta
+                    nome = mensagem.strip().title()
+                    if len(nome) < 2:
+                        return "Por favor, digite um nome válido."
+
+                    # Cria o cliente no banco de dados
+                    db.criar_cliente(telefone=telefone, nome=nome)
+                    # Limpa o estado da conversa para que o usuário vá para o menu principal
+                    self.resetar_conversa(telefone)
+                    
+                    # Confirma a criação e mostra o menu principal
+                    return f"✅ Prazer, {nome}! Seu contato foi guardado.\n\n" + self.resposta_saudacao()
+
+            # --- 3. LÓGICA PARA CLIENTES EXISTENTES ---
+            # Se chegamos aqui, o cliente já existe no banco de dados.
+
+            # Se há um fluxo de conversa ativo (compra, renovação, etc.)
             if conversa:
                 contexto = conversa.get("contexto")
                 estado = conversa.get("estado")
@@ -52,13 +67,13 @@ class GeminiBot:
                 elif contexto == "inicial" and estado == "menu_erro":
                     return self.processar_menu_erro(telefone, mensagem)
 
+            # Se não há nenhum fluxo ativo para um cliente existente, processa como geral
             return self.processar_conversa_geral(telefone, mensagem, cliente)
 
         except Exception as e:
             print(f"[CRITICAL] Erro fatal: {e}")
             traceback.print_exc()
             return self.menu_erro("Ops, tive um problema técnico.", telefone)
-
     def resetar_conversa(self, telefone: str):
         """Reseta conversa para o menu principal"""
         db.set_conversa(telefone, "inicial", "menu", json.dumps({}))
