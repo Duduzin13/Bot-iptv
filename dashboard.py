@@ -159,63 +159,45 @@ def listar_clientes():
     
     
 @app.route("/api/templates", methods=["GET", "POST"])
-def gerenciar_templates():
-    if request.method == "GET":
-        # Retorna todos os templates
-        conn = db.get_connection()
-        templates_raw = conn.execute("SELECT * FROM templates_avisos").fetchall()
-        conn.close()
-        templates = [dict(t) for t in templates_raw]
-        return jsonify(templates)
-    elif request.method == "POST":
-        data = request.json
-        nome = data.get("nome")
-        assunto = data.get("assunto")
-        corpo = data.get("corpo")
-        if not nome or not corpo:
-            return jsonify({"error": "Nome e corpo do template são obrigatórios"}), 400
-        
-        # Tenta atualizar primeiro, se não existir, insere
-        if db.update_template(nome, assunto, corpo):
-            return jsonify({"message": "Template atualizado com sucesso!"})
-        else:
-            conn = db.get_connection()
-            try:
-                conn.execute(
-                    "INSERT INTO templates_avisos (nome, assunto, corpo) VALUES (?, ?, ?)",
-                    (nome, assunto, corpo)
-                )
-                conn.commit()
-                return jsonify({"message": "Template criado com sucesso!"}), 201
-            except sqlite3.IntegrityError:
-                return jsonify({"error": "Já existe um template com este nome."}), 409
-            finally:
-                conn.close()
+def api_gerenciar_templates():
+    conn = db.get_connection()
+    try:
+        if request.method == "GET":
+            templates_raw = conn.execute("SELECT * FROM templates_avisos ORDER BY nome ASC").fetchall()
+            templates = [dict(t) for t in templates_raw]
+            return jsonify(templates)
 
-@app.route("/api/templates/<nome_template>", methods=["GET", "PUT", "DELETE"])
-def gerenciar_template_individual(nome_template):
-    if request.method == "GET":
-        template = db.get_template(nome_template)
-        if template:
-            return jsonify(template)
-        return jsonify({"error": "Template não encontrado"}), 404
-    elif request.method == "PUT":
-        data = request.json
-        assunto = data.get("assunto")
-        corpo = data.get("corpo")
-        if not corpo:
-            return jsonify({"error": "Corpo do template é obrigatório"}), 400
-        if db.update_template(nome_template, assunto, corpo):
-            return jsonify({"message": "Template atualizado com sucesso!"})
-        return jsonify({"error": "Template não encontrado"}), 404
-    elif request.method == "DELETE":
-        conn = db.get_connection()
+        elif request.method == "POST":
+            data = request.json
+            nome = data.get("nome")
+            assunto = data.get("assunto")
+            corpo = data.get("corpo")
+
+            if not nome or not corpo:
+                return jsonify({"error": "Nome e corpo são obrigatórios"}), 400
+            
+            # Usar INSERT OR REPLACE para simplificar a criação/atualização
+            conn.execute(
+                "INSERT OR REPLACE INTO templates_avisos (nome, assunto, corpo) VALUES (?, ?, ?)",
+                (nome, assunto, corpo)
+            )
+            conn.commit()
+            return jsonify({"message": "Template salvo com sucesso!"}), 201
+    finally:
+        conn.close()
+
+@app.route("/api/templates/<nome_template>", methods=["DELETE"])
+def api_deletar_template(nome_template):
+    conn = db.get_connection()
+    try:
         cursor = conn.execute("DELETE FROM templates_avisos WHERE nome = ?", (nome_template,))
         conn.commit()
-        conn.close()
         if cursor.rowcount > 0:
             return jsonify({"message": "Template excluído com sucesso!"})
-        return jsonify({"error": "Template não encontrado"}), 404
+        else:
+            return jsonify({"error": "Template não encontrado"}), 404
+    finally:
+        conn.close()
 
 @app.route("/api/contar-clientes/<tipo>")
 def api_contar_clientes(tipo):

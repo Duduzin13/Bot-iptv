@@ -83,19 +83,24 @@
             <p>Painel de Controle e Monitoramento</p>
         </div>
         
-        
         <div class="stats-grid">
-                    <div class="stat-card primary">
-                        {% set listas_ativas = [] %}
-                        {% for cliente in clientes %}
-                            {% if cliente.status_lista == 'Ativo' %}
-                                {% set _ = listas_ativas.append(cliente) %}
-                            {% endif %}
-                        {% endfor %}
-                        <div class="stat-number">{{ listas_ativas|length }}</div>
-                        <small class="stat-label">Listas Ativas</small>
+            <div class="stat-card primary">
+                <div class="stat-number">{{ stats.listas_ativas or 0 }}</div>
+                <div class="stat-label">Listas Ativas</div>
+            </div>
+
+            <div class="stats-grid">
+                        <div class="stat-card primary">
+                            {% set listas_ativas = [] %}
+                            {% for cliente in clientes %}
+                                {% if cliente.status_lista == 'Ativo' %}
+                                    {% set _ = listas_ativas.append(cliente) %}
+                                {% endif %}
+                            {% endfor %}
+                            <div class="stat-number">{{ listas_ativas|length }}</div>
+                            <small class="stat-label">Listas Ativas</small>
+                        </div>
                     </div>
-                </div>
            
 
             
