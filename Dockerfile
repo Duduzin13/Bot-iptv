@@ -29,4 +29,4 @@ EXPOSE 5000
 
 # 7. O comando para iniciar sua aplicação (substitua 'app:app' se necessário)
 # O bind 0.0.0.0:10000 é importante para o Render
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:5000"]
+CMD ["gunicorn", "dashboard:app", "--bind", "0.0.0.0:5000"]
