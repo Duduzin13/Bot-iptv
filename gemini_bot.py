@@ -25,7 +25,7 @@ class GeminiBot:
             
             # COMANDO UNIVERSAL DE CANCELAMENTO
             if self.is_comando_cancelar(mensagem):
-                db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+                db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
                 self.limpar_dados_temporarios(telefone)
                 return "❌ Atendimento cancelado. Se precisar de algo, é só chamar! 👋"
             
@@ -230,7 +230,7 @@ class GeminiBot:
         """
         Menu de opções quando há erro ou mensagem não compreendida
         """
-        db.salvar_conversa(telefone, "inicial", "menu_erro", json.dumps({}))
+        db.set_conversa(telefone, "inicial", "menu_erro", json.dumps({}))
 
         return f"""❓ {mensagem_erro}\n\n**Precisa de ajuda?**\n\n**1️⃣** - Voltar ao menu principal\n**2️⃣** - Falar com suporte humano\n\n*Digite 1 ou 2 para continuar*"""
 
@@ -239,10 +239,10 @@ class GeminiBot:
         Processa as opções do menu de erro
         """
         if mensagem.strip() == "1":
-            db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+            db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
             return self.menu_principal()
         elif mensagem.strip() == "2":
-            db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+            db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
             return f"""📞 **Suporte Humano**\n\nEntre em contato com nosso suporte:\n**WhatsApp:** 11 96751-2034\n\nNossa equipe está pronta para ajudá-lo! 😊"""
         else:
             return """❓ Opção inválida.\n\n**1️⃣** - Voltar ao menu principal\n**2️⃣** - Falar com suporte humano"""
@@ -251,7 +251,7 @@ class GeminiBot:
         """
         Inicia o fluxo de compra
         """
-        db.salvar_conversa(telefone, "comprar", "aguardando_usuario", json.dumps({}))
+        db.set_conversa(telefone, "comprar", "aguardando_usuario", json.dumps({}))
         return """🛒 **CRIAÇÃO DE NOVA LISTA**\n\nVamos criar sua lista IPTV personalizada!\n\n**Passo 1/4:** Escolha um nome de usuário\n*Use apenas letras e números (4 a 12 caracteres)*\n\nExemplo: `joao123` ou `maria2024`\n\n💡 *Digite "cancelar" a qualquer momento para sair*"""
 
     def iniciar_renovacao(self, telefone: str) -> str:
@@ -277,7 +277,7 @@ class GeminiBot:
 
         if len(listas) == 1:
             lista = listas[0]
-            db.salvar_conversa(
+            db.set_conversa(
                 telefone,
                 "renovar",
                 "aguardando_meses",
@@ -291,7 +291,7 @@ class GeminiBot:
                 opcoes.append(f"**{i}️⃣** - {lista['usuario_iptv']}")
                 listas_nomes.append(lista["usuario_iptv"])
 
-            db.salvar_conversa(
+            db.set_conversa(
                 telefone,
                 "renovar",
                 "escolhendo_lista",
@@ -385,7 +385,7 @@ class GeminiBot:
                 return f"""❌ **Usuário já existe**\n\nO usuário `{usuario}` já está em uso.\nEscolha outro nome:"""
 
             dados["usuario"] = usuario
-            db.salvar_conversa(
+            db.set_conversa(
                 telefone, "comprar", "aguardando_conexoes", json.dumps(dados)
             )
 
@@ -398,7 +398,7 @@ class GeminiBot:
                     return """❌ **Número inválido**\n\nDigite um número de 1 a 10 conexões:"""
 
                 dados["conexoes"] = conexoes
-                db.salvar_conversa(
+                db.set_conversa(
                     telefone, "comprar", "aguardando_duracao", json.dumps(dados)
                 )
 
@@ -418,7 +418,7 @@ class GeminiBot:
                 preco = mercado_pago.calcular_preco(dados["conexoes"], meses)
                 dados["preco"] = preco
 
-                db.salvar_conversa(
+                db.set_conversa(
                     telefone, "comprar", "confirmando_dados", json.dumps(dados)
                 )
 
@@ -438,7 +438,7 @@ class GeminiBot:
                 "nao",
                 "cancelar",
             ]:
-                db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+                db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
                 self.limpar_dados_temporarios(telefone)
                 return (
                     """❌ **Pedido cancelado**\n\nSe mudar de ideia, é só chamar! \n\n"""
@@ -480,13 +480,13 @@ class GeminiBot:
             )
 
             if not pix_info:
-                db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+                db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
                 return self.menu_erro(
                     "Não consegui gerar o PIX. Tente novamente.", telefone
                 )
 
             dados_compra["payment_id"] = pix_info["payment_id"]
-            db.salvar_conversa(
+            db.set_conversa(
                 telefone, "comprar", "aguardando_pagamento", json.dumps(dados_compra)
             )
 
@@ -517,7 +517,7 @@ class GeminiBot:
 
         except Exception as e:
             print(f"[ERROR] Erro ao gerar PIX: {e}")
-            db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+            db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
             return self.menu_erro("Erro ao gerar PIX. Tente novamente.", telefone)
 
     def processar_fluxo_renovacao(
@@ -537,7 +537,7 @@ class GeminiBot:
                 if 0 <= escolha < len(listas_disponiveis):
                     usuario_selecionado = listas_disponiveis[escolha]
                     dados["usuario_selecionado"] = usuario_selecionado
-                    db.salvar_conversa(
+                    db.set_conversa(
                         telefone, "renovar", "aguardando_meses", json.dumps(dados)
                     )
 
@@ -576,7 +576,7 @@ class GeminiBot:
                 dados["preco"] = preco_total
                 dados["conexoes"] = conexoes
 
-                db.salvar_conversa(
+                db.set_conversa(
                     telefone, "renovar", "confirmando_renovacao", json.dumps(dados)
                 )
 
@@ -597,7 +597,7 @@ class GeminiBot:
                 "nao",
                 "cancelar",
             ]:
-                db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+                db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
                 return (
                     """❌ **Renovação cancelada**\n\nSe mudar de ideia, é só chamar! \n\n"""
                     + self.menu_principal()
@@ -637,13 +637,13 @@ class GeminiBot:
             )
 
             if not pix_info:
-                db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+                db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
                 return self.menu_erro(
                     "Não consegui gerar o PIX. Tente novamente.", telefone
                 )
 
             dados_renovacao["payment_id"] = pix_info["payment_id"]
-            db.salvar_conversa(
+            db.set_conversa(
                 telefone, "renovar", "aguardando_pagamento", json.dumps(dados_renovacao)
             )
 
@@ -677,7 +677,7 @@ class GeminiBot:
 
         except Exception as e:
             print(f"[ERROR] Erro ao gerar PIX de renovação: {e}")
-            db.salvar_conversa(telefone, "inicial", "inicial", json.dumps({}))
+            db.set_conversa(telefone, "inicial", "inicial", json.dumps({}))
             return self.menu_erro("Erro ao gerar PIX. Tente novamente.", telefone)
 
     def processar_pagamento_aprovado(self, telefone: str, dados_compra: Dict):
