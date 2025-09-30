@@ -209,21 +209,18 @@ def api_contar_clientes(tipo):
         count = 0
         
         if tipo == "ativos":
-            # Conta clientes com data de expiração no futuro
-            result = conn.execute('SELECT COUNT(*) FROM clientes WHERE data_expiracao > ?', (datetime.now(),)).fetchone()
+            result = conn.execute('SELECT COUNT(DISTINCT telefone) FROM clientes WHERE data_expiracao > ?', (datetime.now(),)).fetchone()
             count = result[0] if result else 0
-            
-        elif tipo == "expirando":
-            # Conta clientes expirando nos próximos 7 dias
+        elif tipo == "a_vencer": # <-- ALTERADO
             data_limite = datetime.now() + timedelta(days=7)
-            result = conn.execute('SELECT COUNT(*) FROM clientes WHERE data_expiracao BETWEEN ? AND ?', (datetime.now(), data_limite)).fetchone()
+            result = conn.execute('SELECT COUNT(DISTINCT telefone) FROM clientes WHERE data_expiracao BETWEEN ? AND ?', (datetime.now(), data_limite)).fetchone()
             count = result[0] if result else 0
-            
+        elif tipo == "expirados": # <-- NOVO
+            result = conn.execute("SELECT COUNT(DISTINCT telefone) FROM clientes WHERE data_expiracao IS NOT NULL AND data_expiracao < datetime('now')").fetchone()
+            count = result[0] if result else 0
         elif tipo == "todos":
-            # Conta todos os clientes que possuem um número de telefone
             result = conn.execute('SELECT COUNT(DISTINCT telefone) FROM clientes WHERE telefone IS NOT NULL').fetchone()
             count = result[0] if result else 0
-            
         else:
             conn.close()
             return jsonify({"error": "Tipo inválido"}), 400
@@ -648,6 +645,16 @@ def atualizar_link():
     
     return redirect(url_for("configuracoes"))
 
+@app.route("/api/clientes/para_selecao")
+def api_clientes_para_selecao():
+    """API que retorna a lista de clientes para o seletor personalizado."""
+    try:
+        clientes = db.obter_clientes_para_selecao()
+        return jsonify(clientes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/atualizar-precos", methods=["POST"])
 def atualizar_precos():
     """Atualizar preços"""
@@ -681,38 +688,42 @@ def enviar_aviso():
     """Rota para enviar avisos individualizados via WhatsApp usando templates."""
     try:
         tipo_publico = request.form.get("tipo")
-        nome_template = request.form.get("nome_template") # Novo campo para o nome do template
-        mensagem_manual = request.form.get("mensagem") # Mensagem manual, caso não use template
+        nome_template = request.form.get("nome_template")
+        mensagem_manual = request.form.get("mensagem")
+        clientes_selecionados_ids = request.form.getlist("clientes_selecionados") # <-- NOVO
 
         if not tipo_publico:
             flash("Por favor, selecione o público.", "error")
             return redirect(url_for("avisos"))
 
-        template = None
+        mensagem_base = ""
         if nome_template:
             template = db.get_template(nome_template)
             if not template:
-                flash(f"Template \'{nome_template}\' não encontrado.", "error")
+                flash(f"Template '{nome_template}' não encontrado.", "error")
                 return redirect(url_for("avisos"))
             mensagem_base = template["corpo"]
         elif mensagem_manual:
             mensagem_base = mensagem_manual
-        else:
+        
+        if not mensagem_base:
             flash("Por favor, selecione um template ou digite uma mensagem.", "error")
             return redirect(url_for("avisos"))
 
         clientes_para_enviar = []
         if tipo_publico == "ativos":
             clientes_para_enviar = db.listar_clientes_ativos()
-        elif tipo_publico == "expirando":
-            clientes_para_enviar = db.listar_clientes_expirando(7) # Dias fixos em 7 por enquanto
-        elif tipo_publico == "todos":
-            # Para \'todos\', precisamos de uma lista de todos os clientes com telefone e usuario_iptv
-            conn = db.get_connection()
-            clientes_raw = conn.execute("SELECT telefone, nome, usuario_iptv, data_expiracao FROM clientes WHERE telefone IS NOT NULL AND usuario_iptv IS NOT NULL").fetchall()
-            conn.close()
-            clientes_para_enviar = [dict(c) for c in clientes_raw]
-
+        elif tipo_publico == "a_vencer": # <-- ALTERADO
+            clientes_para_enviar = db.listar_clientes_expirando(7)
+        elif tipo_publico == "expirados": # <-- NOVO
+            clientes_para_enviar = db.listar_clientes_expirados()
+        elif tipo_publico == "personalizado": # <-- NOVO
+            if not clientes_selecionados_ids:
+                flash("Para o público 'Personalizado', você deve selecionar pelo menos um cliente.", "warning")
+                return redirect(url_for("avisos"))
+            clientes_para_enviar = db.listar_clientes_por_ids([int(id) for id in clientes_selecionados_ids])
+        
+        # O resto da função continua igual...
         if not clientes_para_enviar:
             flash("Nenhum cliente encontrado para o público selecionado.", "info")
             return redirect(url_for("avisos"))
@@ -720,33 +731,33 @@ def enviar_aviso():
         from whatsapp_bot import enviar_mensagem_personalizada
         mensagens_enviadas = 0
         for cliente in clientes_para_enviar:
-            # Renderizar o template com os dados do cliente
             mensagem_final = mensagem_base
+            # Substituição de variáveis (placeholders)
             if cliente.get("nome"):
                 mensagem_final = mensagem_final.replace("{{nome_cliente}}", cliente["nome"])
             else:
-                mensagem_final = mensagem_final.replace("{{nome_cliente}}", "Cliente") # Fallback
+                mensagem_final = mensagem_final.replace("{{nome_cliente}}", "Cliente")
             
             if cliente.get("usuario_iptv"):
                 mensagem_final = mensagem_final.replace("{{nome_lista}}", cliente["usuario_iptv"])
-                mensagem_final = mensagem_final.replace("{{id_lista}}", cliente["usuario_iptv"])
             else:
                 mensagem_final = mensagem_final.replace("{{nome_lista}}", "sua lista")
-                mensagem_final = mensagem_final.replace("{{id_lista}}", "N/A")
 
             if cliente.get("data_expiracao"):
-                data_exp = datetime.fromisoformat(cliente["data_expiracao"])
-                dias_restantes = (data_exp - datetime.now()).days
-                mensagem_final = mensagem_final.replace("{{data_vencimento}}", data_exp.strftime("%d/%m/%Y"))
-                mensagem_final = mensagem_final.replace("{{dias_restantes}}", str(dias_restantes))
+                try:
+                    data_exp = datetime.fromisoformat(cliente["data_expiracao"])
+                    dias_restantes = (data_exp - datetime.now()).days
+                    mensagem_final = mensagem_final.replace("{{data_vencimento}}", data_exp.strftime("%d/%m/%Y"))
+                    mensagem_final = mensagem_final.replace("{{dias_restantes}}", str(dias_restantes))
+                except (ValueError, TypeError):
+                    mensagem_final = mensagem_final.replace("{{data_vencimento}}", "N/A")
+                    mensagem_final = mensagem_final.replace("{{dias_restantes}}", "N/A")
             else:
                 mensagem_final = mensagem_final.replace("{{data_vencimento}}", "N/A")
                 mensagem_final = mensagem_final.replace("{{dias_restantes}}", "N/A")
 
-            # Enviar a mensagem personalizada
             enviar_mensagem_personalizada(cliente["telefone"], mensagem_final)
             mensagens_enviadas += 1
-            # Pequena pausa para evitar bloqueio da API
             time.sleep(1)
 
         flash(f"Avisos enviados para {mensagens_enviadas} clientes!", "success")

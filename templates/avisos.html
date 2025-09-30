@@ -1,4 +1,3 @@
-<!-- templates/avisos.html -->
 {% extends "base.html" %}
 {% block nav_avisos %}active{% endblock %}
 {% block page_title %}Enviar Avisos{% endblock %}
@@ -25,20 +24,11 @@
                             </label>
                             <select class="form-select" id="tipo" name="tipo" required>
                                 <option value="">Selecione o público</option>
-                                <option value="ativos">
-                                    <i class="bi bi-check-circle"></i> Apenas clientes ATIVOS
-                                </option>
-                                <option value="expirando">
-                                    <i class="bi bi-exclamation-triangle"></i> Apenas clientes EXPIRANDO (7 dias)
-                                </option>
-                                <option value="todos">
-                                    <i class="bi bi-broadcast"></i> TODOS os clientes
-                                </option>
+                                <option value="ativos">Apenas clientes ATIVOS</option>
+                                <option value="a_vencer">A vencer (Próximos 7 dias)</option>
+                                <option value="expirados">Apenas clientes EXPIRADOS</option>
+                                <option value="personalizado">Personalizado (Selecionar clientes)</option>
                             </select>
-                            <div class="form-text">
-                                <i class="bi bi-info-circle"></i> 
-                                Escolha cuidadosamente o público para não incomodar
-                            </div>
                         </div>
                         
                         <div class="col-md-6 mb-4">
@@ -53,11 +43,15 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-text">
-                                <i class="bi bi-clock"></i> 
-                                Estimativa baseada nos dados atuais
-                            </div>
                         </div>
+                    </div>
+
+                    <div class="mb-4" id="container-personalizado" style="display: none;">
+                        <label for="clientes_selecionados" class="form-label">
+                            <i class="bi bi-person-check text-primary"></i>
+                            Selecione os Clientes <span class="text-danger">*</span>
+                        </label>
+                        <select id="clientes_selecionados" name="clientes_selecionados" multiple placeholder="Digite para buscar por nome, usuário ou telefone..."></select>
                     </div>
 
                     <input type="hidden" id="nomeTemplateSelecionado" name="nome_template" value="">
@@ -67,42 +61,18 @@
                             Mensagem <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control" id="mensagem" name="mensagem" rows="8" 
-                                  placeholder="Digite sua mensagem aqui..." required maxlength="1000"></textarea>
+                                  placeholder="Digite sua mensagem aqui ou escolha um template abaixo..." required maxlength="4000"></textarea>
                         <div class="d-flex justify-content-between">
                             <div class="form-text">
                                 <i class="bi bi-info-circle"></i> 
-                                Use mensagens claras e diretas. Evite spam.
+                                Variáveis: {{ '{{nome_cliente}}' }}, {{ '{{nome_lista}}' }}, {{ '{{data_vencimento}}' }}, {{ '{{dias_restantes}}' }}
                             </div>
                             <small class="text-muted">
-                                <span id="contadorCaracteres">0</span>/1000 caracteres
+                                <span id="contadorCaracteres">0</span>/4000 caracteres
                             </small>
                         </div>
                     </div>
 
-                    <!-- Preview da mensagem -->
-                    <div class="mb-4" id="previewContainer" style="display: none;">
-                        <label class="form-label">
-                            <i class="bi bi-eye text-success"></i> 
-                            Preview da Mensagem
-                        </label>
-                        <div class="card">
-                            <div class="card-body bg-light">
-                                <div class="d-flex align-items-start">
-                                    <div class="bg-success rounded-circle me-2 p-2">
-                                        <i class="bi bi-robot text-white"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="bg-white rounded p-3 shadow-sm">
-                                            <div id="previewMensagem"></div>
-                                        </div>
-                                        <small class="text-muted">Sistema IPTV</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Botões -->
                     <div class="d-flex justify-content-between">
                         <button type="button" class="btn btn-outline-secondary" onclick="limparFormulario()">
                             <i class="bi bi-arrow-clockwise"></i> Limpar
@@ -115,7 +85,6 @@
             </div>
         </div>
 
-        <!-- Card de Templates de Aviso -->
         <div class="card shadow-sm mt-4">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 text-secondary">
@@ -127,52 +96,18 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">Clique em um template para carregar o texto na mensagem:</p>
-                <div class="row g-2" id="templates-container">
+                <div class="row g-2">
                     {% for template in templates %}
                     <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" 
-                                onclick="usarTemplate('{{ template.nome }}', '{{ template.corpo | tojson | safe }}')">
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 text-start template-btn"
+                                data-template-name="{{ template.nome }}"
+                                data-template-body="{{ template.corpo }}">
                             <i class="bi bi-file-earmark-text"></i> {{ template.nome | replace("_", " ") | title }}
                         </button>
                     </div>
                     {% else %}
-                    <div class="col-12">
-                        <p class="text-muted">Nenhum template disponível. Crie um novo no gerenciador.</p>
-                    </div>
+                    <p class="text-muted">Nenhum template disponível.</p>
                     {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Card de Dicas -->
-        <div class="card shadow-sm mt-4">
-            <div class="card-header bg-success text-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-lightbulb"></i> Dicas para Mensagens Eficazes
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-success">Boas Práticas</h6>
-                        <ul class="small">
-                            <li>Seja claro e objetivo</li>
-                            <li>Use linguagem amigável</li>
-                            <li>Inclua informações relevantes</li>
-                            <li>Evite mensagens muito longas</li>
-                            <li>Teste antes de enviar em massa</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-danger">Evite</h6>
-                        <ul class="small">
-                            <li>Mensagens muito frequentes</li>
-                            <li>Linguagem agressiva</li>
-                            <li>Informações falsas</li>
-                            <li>Pressão excessiva de vendas</li>
-                            <li>Horários inadequados</li>
-                        </ul>
-                    </div>
                 </div>
             </div>
         </div>
@@ -180,246 +115,121 @@
 </div>
 {% endblock %}
 
-<!-- Modal para Gerenciar Templates -->
-<div class="modal fade" id="modalGerenciarTemplates" tabindex="-1" aria-labelledby="modalGerenciarTemplatesLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="modalGerenciarTemplatesLabel"><i class="bi bi-gear"></i> Gerenciar Templates de Aviso</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="templateNome" class="form-label">Nome do Template:</label>
-                    <input type="text" class="form-control" id="templateNome" placeholder="Ex: aviso_vencimento_whatsapp">
-                </div>
-                <div class="mb-3">
-                    <label for="templateAssunto" class="form-label">Assunto (Opcional):</label>
-                    <input type="text" class="form-control" id="templateAssunto" placeholder="Ex: Sua lista está para vencer!">
-                </div>
-                <div class="mb-3">
-                    <label for="templateCorpo" class="form-label">Corpo da Mensagem:</label>
-                    <textarea class="form-control" id="templateCorpo" rows="10" placeholder="Use {{nome_cliente}}, {{nome_lista}}, {{id_lista}}, {{data_vencimento}}, {{dias_restantes}}"></textarea>
-                    <div class="form-text">Variáveis disponíveis: <code>{{nome_cliente}}</code>, <code>{{nome_lista}}</code>, <code>{{id_lista}}</code>, <code>{{data_vencimento}}</code>, <code>{{dias_restantes}}</code></div>
-                </div>
-                <button type="button" class="btn btn-success" onclick="salvarTemplate()">Salvar/Atualizar Template</button>
-                <hr>
-                <h6>Templates Existentes:</h6>
-                <ul class="list-group" id="listaTemplatesExistentes">
-                    {% for template in templates %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>{{ template.nome | replace("_", " ") | title }}</strong>
-                            <p class="mb-0 text-muted small">{{ template.corpo | truncate(100) }}</p>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-info me-2" onclick="editarTemplate('{{ template.nome }}', '{{ template.assunto | tojson | safe }}', '{{ template.corpo | tojson | safe }}')"><i class="bi bi-pencil"></i> Editar</button>
-                            <button type="button" class="btn btn-sm btn-danger" onclick="excluirTemplate('{{ template.nome }}')"><i class="bi bi-trash"></i> Excluir</button>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% block scripts %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
 <script>
-// Templates de mensagens
+document.addEventListener('DOMContentLoaded', function() {
+    // --- INICIALIZAÇÃO DO TOM SELECT ---
+    let tomSelect = null;
 
+    async function inicializarTomSelect() {
+        try {
+            const response = await fetch('/api/clientes/para_selecao');
+            if (!response.ok) throw new Error('Falha ao carregar clientes');
+            const clientes = await response.json();
 
-// Contador de caracteres
-document.getElementById('mensagem').addEventListener('input', function() {
-    const count = this.value.length;
-    document.getElementById('contadorCaracteres').textContent = count;
-    
-    // Preview da mensagem
-    if (count > 0) {
-        document.getElementById('previewContainer').style.display = 'block';
-        document.getElementById('previewMensagem').textContent = this.value;
-    } else {
-        document.getElementById('previewContainer').style.display = 'none';
+            tomSelect = new TomSelect('#clientes_selecionados', {
+                valueField: 'id',
+                labelField: 'nome',
+                searchField: ['nome', 'usuario_iptv', 'telefone'],
+                options: clientes,
+                create: false,
+                render: {
+                    item: function(data, escape) {
+                        return `<div>
+                                    <span class="fw-bold">${escape(data.nome || data.usuario_iptv)}</span>
+                                    <small class="text-muted ms-2">(${escape(data.usuario_iptv)})</small>
+                                </div>`;
+                    },
+                    option: function(data, escape) {
+                        return `<div>
+                                    <span class="fw-bold">${escape(data.nome || data.usuario_iptv)}</span>
+                                    <small class="d-block text-muted">${escape(data.usuario_iptv)} | ${escape(data.telefone)}</small>
+                                </div>`;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Erro ao carregar clientes para o seletor:", error);
+        }
     }
-});
+    inicializarTomSelect();
 
-// Estimativa de envios (você pode conectar com dados reais)
-document.getElementById('tipo').addEventListener('change', async function() {
-    const tipo = this.value;
+    // --- LÓGICA DO FORMULÁRIO ---
+    const tipoSelect = document.getElementById('tipo');
+    const containerPersonalizado = document.getElementById('container-personalizado');
     const estimativaDiv = document.getElementById('estimativaEnvios');
+    const mensagemTextarea = document.getElementById('mensagem');
     
-    if (!tipo) {
-        estimativaDiv.innerHTML = '<span class="text-muted">Selecione um público</span>';
-        return;
-    }
-    
-    // Mostra um feedback de "carregando"
-    estimativaDiv.innerHTML = '<span class="text-muted">Calculando...</span>';
+    tipoSelect.addEventListener('change', async function() {
+        const tipo = this.value;
 
-    try {
-        // Faz a chamada para a nova API no backend
-        const response = await fetch(`/api/contar-clientes/${tipo}`);
-        
-        if (!response.ok) {
-            throw new Error('Erro ao buscar dados');
+        containerPersonalizado.style.display = (tipo === 'personalizado') ? 'block' : 'none';
+
+        if (!tipo) {
+            estimativaDiv.innerHTML = '<span class="text-muted">Selecione um público</span>';
+            return;
         }
         
-        const data = await response.json();
-        const count = data.count;
-        let texto = '';
+        estimativaDiv.innerHTML = '<span class="text-muted">Calculando...</span>';
+        try {
+            const response = await fetch(`/api/contar-clientes/${tipo}`);
+            if (!response.ok) throw new Error('Falha ao calcular estimativa');
+            const data = await response.json();
 
-        if (tipo === 'ativos') {
-            texto = `${count} cliente(s) ativo(s)`;
-        } else if (tipo === 'expirando') {
-            texto = `${count} cliente(s) expirando`;
-        } else if (tipo === 'todos') {
-            texto = `${count} telefone(s) no total`;
+            let texto = `${data.count || 0} cliente(s)`;
+            if (tipo === 'a_vencer') texto += ' a vencer';
+            if (tipo === 'expirados') texto += ' expirado(s)';
+            
+            estimativaDiv.innerHTML = `<strong class="text-primary">${texto}</strong>`;
+        } catch (error) {
+            console.error("Erro na estimativa:", error);
+            estimativaDiv.innerHTML = '<span class="text-danger">Erro ao calcular</span>';
         }
-        
-        estimativaDiv.innerHTML = `<strong class="text-primary">${texto}</strong>`;
+    });
 
-    } catch (error) {
-        console.error("Erro ao obter estimativa:", error);
-        estimativaDiv.innerHTML = '<span class="text-danger">Erro ao calcular</span>';
-    }
+    mensagemTextarea.addEventListener('input', function() {
+        document.getElementById('contadorCaracteres').textContent = this.value.length;
+    });
+
+    document.getElementById('formAviso').addEventListener('submit', function(e) {
+        if (tipoSelect.value === 'personalizado' && tomSelect && tomSelect.getValue().length === 0) {
+            alert('Por favor, selecione pelo menos um cliente para o envio personalizado.');
+            e.preventDefault();
+        }
+    });
+    
+    // *** CORREÇÃO APLICADA AQUI ***
+    // Adiciona o listener para os botões de template
+    document.querySelectorAll('.template-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const nome = this.dataset.templateName;
+            const corpo = this.dataset.templateBody;
+            usarTemplate(nome, corpo);
+        });
+    });
 });
 
-// Usar template
+// Função para usar o template (agora chamada pelo listener)
 function usarTemplate(nome, corpo) {
-    document.getElementById('mensagem').value = corpo;
+    const mensagemTextarea = document.getElementById('mensagem');
+    mensagemTextarea.value = corpo;
+    mensagemTextarea.dispatchEvent(new Event('input')); // Atualiza o contador de caracteres
+    document.getElementById('nomeTemplateSelecionado').value = nome;
+    mensagemTextarea.focus();
+}
+
+function limparFormulario() {
+    document.getElementById('formAviso').reset();
+    document.getElementById('tipo').dispatchEvent(new Event('change'));
     document.getElementById('mensagem').dispatchEvent(new Event('input'));
-    document.getElementById('nomeTemplateSelecionado').value = nome; // Define o nome do template selecionado
-    
-    // Scroll para a área da mensagem
-    document.getElementById('mensagem').scrollIntoView({ behavior: 'smooth' });
-    document.getElementById('mensagem').focus();
-}
-
-// Limpar formulário
-function limparFormulario() {
-    document.getElementById('formAviso').reset();
-    document.getElementById('contadorCaracteres').textContent = '0';
-    document.getElementById('previewContainer').style.display = 'none';
-    document.getElementById('estimativaEnvios').innerHTML = '<span class="text-muted">Selecione um público</span>';
-    document.getElementById('nomeTemplateSelecionado').value = ''; // Limpa o nome do template selecionado
-}
-
-// Funções para gerenciar templates via API
-async function salvarTemplate() {
-    const nome = document.getElementById('templateNome').value.trim();
-    const assunto = document.getElementById('templateAssunto').value.trim();
-    const corpo = document.getElementById('templateCorpo').value.trim();
-
-    if (!nome || !corpo) {
-        alert('Nome e Corpo do template são obrigatórios!');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/templates', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ nome, assunto, corpo })
-        });
-
-        if (response.ok) {
-            alert('Template salvo com sucesso!');
-            location.reload(); // Recarrega a página para atualizar a lista de templates
-        } else {
-            const errorData = await response.json();
-            alert('Erro ao salvar template: ' + (errorData.detail || response.statusText));
-        }
-    } catch (error) {
-        console.error('Erro ao salvar template:', error);
-        alert('Erro de conexão ao salvar template.');
+    // Limpa também o seletor TomSelect se ele existir
+    const tomSelect = document.getElementById('clientes_selecionados').tomselect;
+    if(tomSelect) {
+        tomSelect.clear();
     }
 }
-
-function editarTemplate(nome, assunto, corpo) {
-    document.getElementById('templateNome').value = nome;
-    document.getElementById('templateAssunto').value = assunto;
-    document.getElementById('templateCorpo').value = corpo;
-    // Opcional: focar no modal ou no campo de nome
-    const modal = new bootstrap.Modal(document.getElementById('modalGerenciarTemplates'));
-    modal.show();
-}
-
-async function excluirTemplate(nome) {
-    if (!confirm(`Tem certeza que deseja excluir o template '${nome}'?`)) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/templates/${nome}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            alert('Template excluído com sucesso!');
-            location.reload(); // Recarrega a página para atualizar a lista de templates
-        } else {
-            const errorData = await response.json();
-            alert('Erro ao excluir template: ' + (errorData.detail || response.statusText));
-        }
-    } catch (error) {
-        console.error('Erro ao excluir template:', error);
-        alert('Erro de conexão ao excluir template.');
-    }
-}
-
-// Limpar formulário
-function limparFormulario() {
-    document.getElementById('formAviso').reset();
-    document.getElementById('contadorCaracteres').textContent = '0';
-    document.getElementById('previewContainer').style.display = 'none';
-    document.getElementById('estimativaEnvios').innerHTML = '<span class="text-muted">Selecione um público</span>';
-}
-
-// Validação do formulário
-document.getElementById('formAviso').addEventListener('submit', function(e) {
-    const tipo = document.getElementById('tipo').value;
-    const mensagem = document.getElementById('mensagem').value.trim();
-    
-    if (!tipo) {
-        alert('Por favor, selecione o público-alvo!');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!mensagem && !nomeTemplate) {
-        alert('Por favor, selecione um template ou digite a mensagem!');
-        e.preventDefault();
-        return;
-    }
-    
-    if (mensagem.length < 10) {
-        alert('A mensagem deve ter pelo menos 10 caracteres!');
-        e.preventDefault();
-        return;
-    }
-    
-    // Confirmação para envio em massa
-    const confirmacao = confirm(`Tem certeza que deseja enviar esta mensagem para ${tipo}?\n\nEsta ação não pode ser desfeita.`);
-    if (!confirmacao) {
-        e.preventDefault();
-        return;
-    }
-    
-    // Desabilitar botão para evitar duplo clique
-    const btnEnviar = document.getElementById('btnEnviar');
-    btnEnviar.disabled = true;
-    btnEnviar.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
-    
-    // Reabilitar após 10 segundos (caso dê erro)
-    setTimeout(() => {
-        btnEnviar.disabled = false;
-        btnEnviar.innerHTML = '<i class="bi bi-send"></i> Enviar Aviso';
-    }, 10000);
-});
 </script>
 {% endblock %}

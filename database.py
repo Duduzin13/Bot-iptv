@@ -157,40 +157,112 @@ class DatabaseManager:
             )
         conn.commit()
     def atualizar_dados_sincronizados(self, usuario_iptv: str, dados_sync: dict) -> bool:
-        """Atualiza os dados sincronizados do cliente no banco local."""
+        """
+        Atualiza os dados de um cliente de forma segura, apenas os campos
+        que foram efetivamente recebidos na sincronização.
+        """
+        if not dados_sync:
+            return False
+
         try:
-            conn = self.get_connection()
-            try:
-                # Atualizar também a última sincronização
-                conn.execute("""
-                    UPDATE clientes
-                    SET
-                        senha_iptv = ?,
-                        plano = ?,
-                        conexoes = ?,
-                        data_expiracao = ?,
-                        data_criacao = ?,
-                        ultima_sincronizacao = ?
-                    WHERE usuario_iptv = ?
-                """, (
-                    dados_sync.get("senha"),
-                    dados_sync.get("plano"),
-                    int(dados_sync.get("conexoes", 1)),
-                    datetime.strptime(dados_sync.get("expira_em"), "%d/%m/%Y %H:%M").isoformat() if dados_sync.get("expira_em") else None,
-                    datetime.strptime(dados_sync.get("criado_em"), "%d/%m/%Y %H:%M").isoformat() if dados_sync.get("criado_em") else None,
-                    datetime.now(),
-                    usuario_iptv
-                ))
-                conn.commit()
+            dados_para_atualizar = {}
+            
+            # Mapeia os campos recebidos para os campos do banco
+            if "senha" in dados_sync:
+                dados_para_atualizar["senha_iptv"] = dados_sync["senha"]
+            if "plano" in dados_sync:
+                dados_para_atualizar["plano"] = dados_sync["plano"]
+            if "conexoes" in dados_sync and dados_sync["conexoes"] is not None:
+                try:
+                    dados_para_atualizar["conexoes"] = int(dados_sync["conexoes"])
+                except (ValueError, TypeError):
+                    print(f"[DB WARN] Valor de 'conexoes' inválido para {usuario_iptv}: {dados_sync['conexoes']}")
+
+            # Converte as datas para o formato do banco (ISO)
+            if "expira_em" in dados_sync and dados_sync["expira_em"]:
+                try:
+                    dados_para_atualizar["data_expiracao"] = datetime.strptime(dados_sync["expira_em"], "%d/%m/%Y %H:%M").isoformat()
+                except ValueError:
+                    print(f"[DB WARN] Formato de 'expira_em' inválido para {usuario_iptv}: {dados_sync['expira_em']}")
+            
+            if "criado_em" in dados_sync and dados_sync["criado_em"]:
+                try:
+                    dados_para_atualizar["data_criacao"] = datetime.strptime(dados_sync["criado_em"], "%d/%m/%Y %H:%M").isoformat()
+                except ValueError:
+                    print(f"[DB WARN] Formato de 'criado_em' inválido para {usuario_iptv}: {dados_sync['criado_em']}")
+
+            # Se não houver nada para atualizar, retorna sucesso (pois não há erro)
+            if not dados_para_atualizar:
+                print(f"[DB] Nenhum campo válido para atualizar para o usuário {usuario_iptv}.")
+                # Mesmo sem campos, atualiza a data de sincronização para não ficar tentando de novo
+                with self as conn:
+                    conn.execute("UPDATE clientes SET ultima_sincronizacao = ? WHERE usuario_iptv = ?", (datetime.now(), usuario_iptv))
+                    conn.commit()
                 return True
-            finally:
-                conn.close()
+
+            # Constrói a query de UPDATE dinamicamente
+            campos_query = ", ".join([f"{campo} = ?" for campo in dados_para_atualizar.keys()])
+            valores_query = list(dados_para_atualizar.values())
+            
+            # Adiciona a data de sincronização e o usuário
+            campos_query += ", ultima_sincronizacao = ?"
+            valores_query.append(datetime.now())
+            valores_query.append(usuario_iptv)
+
+            query_final = f"UPDATE clientes SET {campos_query} WHERE usuario_iptv = ?"
+
+            with self as conn:
+                conn.execute(query_final, valores_query)
+                conn.commit()
+            
+            print(f"[DB] Dados sincronizados de '{usuario_iptv}' atualizados com sucesso no banco.")
+            return True
+
         except Exception as e:
-            print(f"[DB] Erro ao atualizar dados sincronizados: {e}")
+            print(f"[DB] Erro CRÍTICO ao atualizar dados sincronizados para '{usuario_iptv}': {e}")
             traceback.print_exc()
             return False
 
     # === MÉTODOS PARA TEMPLATES DE AVISOS ===
+
+    def listar_clientes_expirados(self) -> List[Dict]:
+        """Retorna todos os clientes com data de expiração no passado."""
+        with self as conn:
+            query = """
+                SELECT nome, telefone, usuario_iptv, data_expiracao 
+                FROM clientes 
+                WHERE data_expiracao IS NOT NULL AND data_expiracao < datetime('now')
+                ORDER BY data_expiracao DESC
+            """
+            results = conn.execute(query).fetchall()
+            return [dict(row) for row in results]
+
+    def obter_clientes_para_selecao(self) -> List[Dict]:
+        """Retorna uma lista simplificada de clientes para preencher seletores."""
+        with self as conn:
+            query = """
+                SELECT id, nome, usuario_iptv, telefone 
+                FROM clientes 
+                WHERE telefone IS NOT NULL AND usuario_iptv IS NOT NULL
+                ORDER BY nome ASC
+            """
+            results = conn.execute(query).fetchall()
+            return [dict(row) for row in results]
+
+    def listar_clientes_por_ids(self, ids: List[int]) -> List[Dict]:
+        """Retorna os dados completos dos clientes a partir de uma lista de IDs."""
+        if not ids:
+            return []
+        with self as conn:
+            # Cria a string de placeholders (?, ?, ?) de forma segura
+            placeholders = ','.join(['?'] * len(ids))
+            query = f"""
+                SELECT nome, telefone, usuario_iptv, data_expiracao 
+                FROM clientes 
+                WHERE id IN ({placeholders})
+            """
+            results = conn.execute(query, ids).fetchall()
+            return [dict(row) for row in results]        
 
     def get_template(self, nome: str) -> Optional[Dict]:
         with self as conn:
